@@ -1,0 +1,43 @@
+# Gradle
+.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+.kotlin/
+
+# 本地环境配置（每台电脑不同，不能提交）
+local.properties
+.idea/
+*.iml
+
+# 签名文件与密钥（绝对不要提交）
+*.jks
+*.keystore
+*.p12
+*.pfx
+keystore.properties
+signing.properties
+secrets.properties
+.env
+.env.*
+
+# 构建产物
+*.apk
+*.aab
+*.ap_
+*.hprof
+app/release/
+captures/
+
+# 原生构建
+.externalNativeBuild/
+.cxx/
+
+# 私人日记图片与测试内容，避免误提交
+diary-images/
+private-diaries/
+
+# 操作系统与日志
+.DS_Store
+Thumbs.db
+*.log

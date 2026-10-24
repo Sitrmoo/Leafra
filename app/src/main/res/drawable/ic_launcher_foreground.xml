@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 深色书封 -->
+    <path
+        android:fillColor="#6D4C33"
+        android:pathData="M23,33 C33,27 45,27 53,33 L53,80 C45,74 33,74 23,80 Z" />
+    <path
+        android:fillColor="#6D4C33"
+        android:pathData="M55,33 C63,27 75,27 85,33 L85,80 C75,74 63,74 55,80 Z" />
+
+    <!-- 米色书页 -->
+    <path
+        android:fillColor="#FFF8E9"
+        android:pathData="M28,38 C35,33 45,33 52,38 L52,74 C45,69 35,69 28,74 Z" />
+    <path
+        android:fillColor="#FFF8E9"
+        android:pathData="M56,38 C63,33 73,33 80,38 L80,74 C73,69 63,69 56,74 Z" />
+
+    <!-- 书页横线 -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M33,45 C38,43 43,43 47,45"
+        android:strokeColor="#D8C3A5"
+        android:strokeLineCap="round"
+        android:strokeWidth="1.5" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M33,53 C38,51 43,51 47,53"
+        android:strokeColor="#D8C3A5"
+        android:strokeLineCap="round"
+        android:strokeWidth="1.5" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M61,45 C65,43 70,43 75,45"
+        android:strokeColor="#D8C3A5"
+        android:strokeLineCap="round"
+        android:strokeWidth="1.5" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M61,53 C65,51 70,51 75,53"
+        android:strokeColor="#D8C3A5"
+        android:strokeLineCap="round"
+        android:strokeWidth="1.5" />
+</vector>

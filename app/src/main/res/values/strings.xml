@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Diary Book</string>
+    <string name="home_title">我的日记</string>
+    <string name="home_subtitle">把纸页收进一本电子书，随时慢慢翻阅。</string>
+    <string name="empty_shelf_label">空书架</string>
+    <string name="empty_shelf_title">这里还没有日记</string>
+    <string name="empty_shelf_body">从相册导入纸质日记的扫描图片，它们会在这里整理成一本电子书。</string>
+    <string name="import_images">导入日记图片</string>
+    <string name="reselect_images">重新选择图片</string>
+    <string name="reading_mode">阅读模式</string>
+    <string name="reading_mode_placeholder">阅读模式正在开发中，下一版开放。</string>
+    <string name="selected_images">已选择 %1$d 张图片</string>
+    <string name="selected_images_hint">图片只在本次预览中显示，尚未保存到应用。</string>
+    <string name="photo_picker_hint">使用系统照片选择器，无需授予存储权限。</string>
+</resources>
