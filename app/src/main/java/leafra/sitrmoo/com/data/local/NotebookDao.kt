@@ -37,9 +37,13 @@ interface NotebookDao {
     @Query("UPDATE notebooks SET coverStyle = :coverStyle, updatedAt = :updatedAt WHERE id = :notebookId")
     suspend fun updateCoverStyle(notebookId: String, coverStyle: Int, updatedAt: Long)
 
-    /** 预留阅读进度接口：保存上次阅读的页面 ID（不是页码）。 */
-    @Query("UPDATE notebooks SET lastReadPageId = :pageId, updatedAt = :updatedAt WHERE id = :notebookId")
-    suspend fun updateLastReadPage(notebookId: String, pageId: String?, updatedAt: Long)
+    /** 阅读进度：只保存上次阅读的页面 ID（不更新 updatedAt，避免翻页改变书架排序）。 */
+    @Query("UPDATE notebooks SET lastReadPageId = :pageId WHERE id = :notebookId")
+    suspend fun updateLastReadPage(notebookId: String, pageId: String?)
+
+    /** 页面被删除时清除指向它的阅读进度，避免恢复时指向不存在的页面。 */
+    @Query("UPDATE notebooks SET lastReadPageId = NULL WHERE id = :notebookId AND lastReadPageId = :pageId")
+    suspend fun clearLastReadPage(notebookId: String, pageId: String)
 
     @Query("DELETE FROM notebooks WHERE id = :notebookId")
     suspend fun delete(notebookId: String)

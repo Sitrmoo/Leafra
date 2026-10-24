@@ -8,6 +8,7 @@ import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
@@ -321,6 +322,7 @@ class DiaryRepository(
 
                     database.withTransaction {
                         pageDao.deleteById(pageId)
+                        notebookDao.clearLastReadPage(notebookId, pageId)
                         notebookDao.touch(notebookId, System.currentTimeMillis())
                     }
 
@@ -392,8 +394,9 @@ class DiaryRepository(
      * 页码仍然由排序动态计算，不在数据库中保存。
      */
     suspend fun setLastReadPage(notebookId: String, pageId: String?) {
-        withContext(Dispatchers.IO) {
-            notebookDao.updateLastReadPage(notebookId, pageId, System.currentTimeMillis())
+        // 阅读进度写入不可取消：快速翻页或立刻返回时也要落库。
+        withContext(Dispatchers.IO + NonCancellable) {
+            notebookDao.updateLastReadPage(notebookId, pageId)
         }
     }
 

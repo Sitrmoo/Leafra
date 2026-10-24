@@ -6,6 +6,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +28,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -55,7 +58,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -68,6 +74,7 @@ import leafra.sitrmoo.com.data.DiaryRepository
 import leafra.sitrmoo.com.data.model.DiaryPage
 import leafra.sitrmoo.com.data.model.ImportResult
 import leafra.sitrmoo.com.ui.components.FavoriteStar
+import leafra.sitrmoo.com.ui.components.BlankPageStyle
 import leafra.sitrmoo.com.ui.components.PageImage
 import leafra.sitrmoo.com.ui.theme.PaperBackground
 import leafra.sitrmoo.com.ui.theme.PaperCream
@@ -202,7 +209,8 @@ fun NotebookScreen(
     }
 
     fun toggleFavorite(page: DiaryPage) {
-        if (!isEditing || isBusy) return
+        // 收藏是唯一允许在阅读模式使用的页面操作。
+        if (isBusy) return
         isBusy = true
         scope.launch {
             try {
@@ -286,6 +294,10 @@ fun NotebookScreen(
                         pages = pages,
                         repository = repository,
                         isEditing = isEditing,
+                        initialPageId = notebook.lastReadPageId,
+                        onPageChanged = { page ->
+                            repository.setLastReadPage(notebookId, page.id)
+                        },
                         onEditPage = { page -> editingPage = page },
                         onToggleFavorite = { page -> toggleFavorite(page) },
                     )
@@ -380,6 +392,8 @@ private fun NotebookTopBar(
     onBack: () -> Unit,
     onToggleEdit: () -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Surface(color = MaterialTheme.colorScheme.surface) {
         Column(
             modifier = Modifier
@@ -396,6 +410,14 @@ private fun NotebookTopBar(
                 IconButton(onClick = onBack) {
                     BackArrow(color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+
+                Image(
+                    painter = painterResource(R.drawable.ic_brand_mark),
+                    contentDescription = null,
+                    modifier = Modifier.size(width = 22.dp, height = 29.dp),
+                )
+
+                Spacer(modifier = Modifier.width(6.dp))
 
                 Column(
                     modifier = Modifier
@@ -416,18 +438,57 @@ private fun NotebookTopBar(
                     )
                 }
 
-                TextButton(onClick = onToggleEdit) {
-                    Text(
-                        text = stringResource(
-                            if (isEditing) R.string.editor_done else R.string.editor_edit,
-                        ),
-                    )
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        ReaderMoreGlyph(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    stringResource(
+                                        if (isEditing) R.string.editor_done else R.string.editor_edit,
+                                    ),
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onToggleEdit()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.reader_back_to_shelf)) },
+                            onClick = {
+                                menuExpanded = false
+                                onBack()
+                            },
+                        )
+                    }
                 }
             }
 
             HorizontalDivider(
                 thickness = 1.dp,
                 color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReaderMoreGlyph(color: Color) {
+    Canvas(modifier = Modifier.size(20.dp)) {
+        val radius = 1.7.dp.toPx()
+        val centerX = size.width / 2f
+        listOf(0.28f, 0.5f, 0.72f).forEach { fraction ->
+            drawCircle(
+                color = color,
+                radius = radius,
+                center = Offset(centerX, size.height * fraction),
             )
         }
     }
@@ -508,6 +569,8 @@ private fun SinglePageView(
     pages: List<DiaryPage>,
     repository: DiaryRepository,
     isEditing: Boolean,
+    initialPageId: String?,
+    onPageChanged: suspend (DiaryPage) -> Unit,
     onEditPage: (DiaryPage) -> Unit,
     onToggleFavorite: (DiaryPage) -> Unit,
 ) {
@@ -516,13 +579,33 @@ private fun SinglePageView(
         return
     }
 
-    val pagerState = rememberPagerState(pageCount = { pages.size })
+    // 进度按页面 ID 恢复：页面被重排后仍能找到原页；被删除时回退到第一页。
+    val initialIndex = pages.indexOfFirst { it.id == initialPageId }.coerceAtLeast(0)
+    val pagerState = rememberPagerState(
+        initialPage = initialIndex,
+        pageCount = { pages.size },
+    )
+    val scope = rememberCoroutineScope()
+    var isZoomed by remember { mutableStateOf(false) }
+    var zoomResetToken by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(pagerState.currentPage) {
+        isZoomed = false
+        zoomResetToken += 1
+        pages.getOrNull(pagerState.currentPage)?.let { page -> onPageChanged(page) }
+    }
 
     LaunchedEffect(pages.size) {
-        if (pages.isNotEmpty() && pagerState.currentPage > pages.lastIndex) {
+        if (pagerState.currentPage > pages.lastIndex) {
             pagerState.scrollToPage(pages.lastIndex)
         }
     }
+
+    val currentPage = pages.getOrNull(pagerState.currentPage)
+    val canGoPrevious = pagerState.currentPage > 0
+    val canGoNext = pagerState.currentPage < pages.lastIndex
+    val previousLabel = stringResource(R.string.previous_spread)
+    val nextLabel = stringResource(R.string.next_spread)
 
     Column(modifier = Modifier.fillMaxSize()) {
         HorizontalPager(
@@ -530,8 +613,9 @@ private fun SinglePageView(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 20.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
             pageSpacing = 12.dp,
+            userScrollEnabled = !isZoomed,
         ) { index ->
             val page = pages[index]
             Surface(
@@ -547,16 +631,20 @@ private fun SinglePageView(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(10.dp),
+                        .padding(8.dp),
                 ) {
-                    PageImage(
-                        imagePath = page.imagePath,
-                        isBlank = page.isBlank,
+                    ZoomablePage(
+                        page = page,
                         repository = repository,
+                        resetToken = zoomResetToken,
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth(),
-                        maxSizePx = 1600,
+                        onZoomChanged = { zoomed ->
+                            if (index == pagerState.currentPage) {
+                                isZoomed = zoomed
+                            }
+                        },
                     )
                     Text(
                         text = stringResource(R.string.page_number, page.pageNumber),
@@ -565,7 +653,7 @@ private fun SinglePageView(
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 8.dp),
+                            .padding(top = 6.dp),
                     )
                 }
             }
@@ -574,9 +662,39 @@ private fun SinglePageView(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp),
+                .padding(horizontal = 8.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // 阅读模式允许收藏当前页，其它编辑动作只在编辑模式出现。
+            FavoriteStar(
+                selected = currentPage?.isFavorite == true,
+                enabled = currentPage != null,
+                onClick = { currentPage?.let(onToggleFavorite) },
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            IconButton(
+                onClick = {
+                    if (canGoPrevious) {
+                        scope.launch {
+                            pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                        }
+                    }
+                },
+                enabled = canGoPrevious,
+                modifier = Modifier.semantics { contentDescription = previousLabel },
+            ) {
+                PagerArrow(
+                    left = true,
+                    color = if (canGoPrevious) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.outline
+                    },
+                )
+            }
+
             Text(
                 text = stringResource(
                     R.string.page_indicator,
@@ -585,22 +703,39 @@ private fun SinglePageView(
                 ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 6.dp),
             )
+
+            IconButton(
+                onClick = {
+                    if (canGoNext) {
+                        scope.launch {
+                            pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                        }
+                    }
+                },
+                enabled = canGoNext,
+                modifier = Modifier.semantics { contentDescription = nextLabel },
+            ) {
+                PagerArrow(
+                    left = false,
+                    color = if (canGoNext) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.outline
+                    },
+                )
+            }
 
             Spacer(modifier = Modifier.weight(1f))
 
-            if (isEditing) {
-                val currentPage = pages.getOrNull(pagerState.currentPage)
-                if (currentPage != null) {
-                    FavoriteStar(
-                        selected = currentPage.isFavorite,
-                        enabled = true,
-                        onClick = { onToggleFavorite(currentPage) },
-                    )
-                    TextButton(onClick = { onEditPage(currentPage) }) {
-                        Text(stringResource(R.string.page_edit_action))
-                    }
+            if (isEditing && currentPage != null) {
+                TextButton(onClick = { onEditPage(currentPage) }) {
+                    Text(stringResource(R.string.page_edit_action))
                 }
+            } else {
+                Spacer(modifier = Modifier.size(48.dp))
             }
         }
     }
@@ -747,6 +882,7 @@ private fun SpreadPage(
                         .weight(1f)
                         .fillMaxWidth(),
                     maxSizePx = 1200,
+                    blankStyle = BlankPageStyle.READER,
                 )
                 Text(
                     text = stringResource(R.string.page_number, pageNumber),

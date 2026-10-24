@@ -36,6 +36,12 @@ private sealed interface ImageLoadState {
     data object Missing : ImageLoadState
 }
 
+/** 空白占位页在编辑器与阅读器中的两种样式。 */
+enum class BlankPageStyle {
+    EDITOR,
+    READER,
+}
+
 /**
  * 页面图片：空白占位页与“图片缺失”有明确区分，不会把占位页显示成已有照片。
  * 图片从应用私有目录按需下采样解码，避免大图占用过多内存。
@@ -48,9 +54,10 @@ fun PageImage(
     modifier: Modifier = Modifier,
     maxSizePx: Int = 640,
     contentScale: ContentScale = ContentScale.Fit,
+    blankStyle: BlankPageStyle = BlankPageStyle.EDITOR,
 ) {
     when {
-        isBlank -> BlankPagePlaceholder(modifier = modifier)
+        isBlank -> BlankPagePlaceholder(modifier = modifier, style = blankStyle)
         imagePath == null -> MissingPagePlaceholder(modifier = modifier)
         else -> LoadedPageImage(
             imagePath = imagePath,
@@ -104,7 +111,27 @@ private fun LoadedPageImage(
 }
 
 @Composable
-private fun BlankPagePlaceholder(modifier: Modifier = Modifier) {
+private fun BlankPagePlaceholder(
+    modifier: Modifier = Modifier,
+    style: BlankPageStyle = BlankPageStyle.EDITOR,
+) {
+    if (style == BlankPageStyle.READER) {
+        Box(
+            modifier = modifier
+                .clip(RoundedCornerShape(10.dp))
+                .background(MaterialTheme.colorScheme.surface),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = stringResource(R.string.blank_page),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
+        return
+    }
+
     val outline = MaterialTheme.colorScheme.outline
 
     Box(

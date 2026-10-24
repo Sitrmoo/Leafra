@@ -72,6 +72,7 @@
     <!-- 日记本编辑 -->
     <string name="editor_edit">编辑</string>
     <string name="editor_done">完成</string>
+    <string name="reader_back_to_shelf">返回书架</string>
     <string name="view_stack">立体</string>
     <string name="view_single">单页</string>
     <string name="view_outline">大纲</string>
