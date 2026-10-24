@@ -34,8 +34,11 @@
 | Compose BOM | 2024.10.01 | 统一 `androidx.compose.*` 版本，不要单独指定 Compose 依赖版本 |
 | compileSdk / targetSdk | 34 | |
 | minSdk | 26 | Android 8.0 |
+| androidx.room:room-runtime / room-ktx | 2.6.1 | `minCompileSdk` 为 34；2.7+ 要求 compileSdk 35，不要单独升级 |
+| androidx.room:room-compiler（KSP） | 2.6.1 | 由 KSP 生成代码 |
+| KSP | 2.0.21-1.0.28 | 必须与 Kotlin 2.0.21 严格对应，升级 Kotlin 时同步升级 |
 
-已固定的依赖：`androidx.core:core-ktx:1.13.1`、`androidx.lifecycle:lifecycle-runtime-ktx:2.8.6`、`androidx.activity:activity-compose:1.9.3`，加 Compose BOM（`ui`、`ui-graphics`、`ui-tooling-preview`、`material3`）。
+已固定的依赖：`androidx.core:core-ktx:1.13.1`、`androidx.lifecycle:lifecycle-runtime-ktx:2.8.6`、`androidx.activity:activity-compose:1.9.3`、`androidx.room:room-runtime:2.6.1`、`androidx.room:room-ktx:2.6.1`，加 Compose BOM（`ui`、`ui-graphics`、`ui-tooling-preview`、`material3`）与 `ksp("androidx.room:room-compiler:2.6.1")`。
 
 Gradle Wrapper 完整性基线（改动 wrapper 时必须同步更新）：
 
@@ -49,14 +52,20 @@ Gradle Wrapper 完整性基线（改动 wrapper 时必须同步更新）：
 .
 ├─ .github/workflows/android.yml   # CI：构建 Debug APK 并上传 Artifact
 ├─ app/
-│  ├─ build.gradle.kts             # 模块配置与依赖
+│  ├─ build.gradle.kts             # 模块配置与依赖（含 Room + KSP）
 │  ├─ proguard-rules.pro
 │  └─ src/main/
-│     ├─ AndroidManifest.xml       # 只有 MainActivity，无任何用户可见权限
+│     ├─ AndroidManifest.xml       # MainActivity + LeafraApplication，无任何用户可见权限
 │     ├─ java/leafra/sitrmoo/com/
-│     │  ├─ MainActivity.kt        # 入口，setContent { LeafraTheme { HomeScreen() } }
+│     │  ├─ LeafraApplication.kt   # 数据库/仓库初始化、启动时清理孤立图片
+│     │  ├─ MainActivity.kt        # 入口，setContent { LeafraTheme { HomeScreen(repository) } }
+│     │  ├─ data/
+│     │  │  ├─ DiaryRepository.kt  # 唯一数据入口：导入事务、回滚、引用计数
+│     │  │  ├─ ImageStore.kt       # 私有目录图片复制/删除/路径校验
+│     │  │  ├─ local/              # Entities.kt、NotebookDao.kt、PageDao.kt、LeafraDatabase.kt
+│     │  │  └─ model/              # Models.kt（Notebook / DiaryPage / ImportResult）
 │     │  └─ ui/
-│     │     ├─ home/HomeScreen.kt  # 中文首页 + Photo Picker
+│     │     ├─ home/HomeScreen.kt  # 首页：日记本列表、导入、缩略图
 │     │     └─ theme/              # Color.kt / Theme.kt / Type.kt（纸张色系、衬线标题）
 │     └─ res/                      # strings.xml、themes.xml、colors.xml、自适应启动图标
 ├─ gradle/wrapper/
@@ -107,25 +116,28 @@ Gradle Wrapper 完整性基线（改动 wrapper 时必须同步更新）：
 - 保留 `chmod +x ./gradlew`（Windows 下提交的 `gradlew` 可能没有可执行位）。
 - Artifact 路径必须与 Gradle 实际输出一致。
 
-## 7. 进度基线（2026-10-24 核对）
+## 7. 进度基线（2026-10-24 数据层阶段核对）
 
 已完成：
 
 - Gradle Wrapper 8.9 完整（jar + properties + 两个启动脚本），校验和与官方一致。
-- 首页 `HomeScreen`：中文文案、纸张风格主题、空书架卡片、可滚动、最大宽度 560dp。
-- Photo Picker：`ActivityResultContracts.PickMultipleVisualMedia(maxItems = 30)` + `PickVisualMedia.ImageOnly`，仅记录本次会话选中的 `Uri`，显示数量并支持重新选择。
-- “阅读模式”按钮点击后用 Snackbar 提示开发中。
-- 无存储/网络权限；`aapt` 校验 APK 只有 AndroidX 自动生成的 `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`。
-- 本地 `:app:assembleDebug` 构建成功，产出 debug APK。
+- 首页 `HomeScreen`：中文文案、纸张风格主题、书架列表、页面缩略图、可滚动、最大宽度 560dp。
+- Room 2.6.1 + KSP：`notebooks` / `pages` 两张表，实体、DAO、Database 齐备。
+- 图片持久化：Photo Picker 选图后复制到 `files/diary-images/`，数据库只保存相对路径。
+- 导入事务：先复制文件，再单事务写库；失败时删除本次文件并回滚。
+- 删除日记本按引用计数清理图片；应用启动时清理数据库未引用的孤立图片。
+- 新建/删除日记本、页面缩略图展示；重启应用后日记本与图片仍可显示。
+- 阅读进度预留：`notebooks.lastReadPageId` + `DiaryRepository.setLastReadPage`。
+- 无存储/网络权限；Manifest 仅 `MainActivity` 一个导出组件。
+- 本地 `:app:assembleDebug` 构建通过，产出 debug APK。
 
 未实现（按顺序推进，不要跳步）：
 
-1. 把选中图片复制到应用私有目录并持久化记录。
-2. Room 数据库与书架列表。
-3. DataStore 保存阅读设置。
-4. Coil 加载缩略图。
-5. 普通单页阅读模式。
-6. 单页阅读稳定后再做仿真翻页。
+1. DataStore 保存阅读设置。
+2. Coil 加载缩略图。
+3. 普通单页阅读模式，并接入 `setLastReadPage`。
+4. 页面收藏 / 日期 / 描述的编辑界面。
+5. 单页阅读稳定后再做仿真翻页。
 
 明确不做：OCR、云同步、账号系统、在线 AI、广告、付费。
 

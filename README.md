@@ -6,14 +6,16 @@ Leafra 是一个用于把**纸质日记电子化**的 Android 应用。你可以
 - 包名 / applicationId：`leafra.sitrmoo.com`
 - 仓库：`https://github.com/Sitrmoo/Leafra.git`
 
-本仓库当前处于**项目初始化阶段**，只包含可运行的首页骨架和基础图片选择功能，尚未实现完整的书籍管理与翻页阅读。
+本仓库当前处于**数据层阶段**：已能把选中的扫描图片复制到应用私有目录，并用 Room 保存日记本与页面元数据；阅读器与翻页尚未实现。
 
 ## 当前已实现
 
 - Kotlin + Jetpack Compose 原生 Android 项目骨架。
-- 中文首页：“我的日记”、空书架提示、纸张风格配色。
-- “导入日记图片”按钮：调用 Android 系统 **Photo Picker**，支持一次选择多张图片（最多 30 张）。
-- 选择后显示已选图片数量，并支持重新选择。
+- 中文首页：“我的日记”、书架/空书架提示、纸张风格配色。
+- 新建日记本：输入名称后写入 Room，重启应用后仍然存在。
+- “导入日记图片”按钮：调用 Android 系统 **Photo Picker**，最多一次选择 30 张；图片复制到应用私有目录 `files/diary-images/`，数据库只保存相对路径。
+- 首页展示日记本列表、页面数量与已导入页面的缩略图；页码按页面排序动态计算（从 1 开始连续），页面主键使用 UUID。
+- 删除日记本时按引用计数清理图片；应用启动时清理数据库未引用的孤立图片。
 - “阅读模式”入口：点击后用 Snackbar 提示“正在开发中”，按钮有真实反馈。
 - GitHub Actions 云端构建 Debug APK，并上传构建产物。
 - 完整的 Gradle Wrapper（Gradle 8.9）。
@@ -21,15 +23,13 @@ Leafra 是一个用于把**纸质日记电子化**的 Android 应用。你可以
 
 ## 当前尚未实现
 
-- 把选中的图片复制/保存到应用私有目录。
-- Room 数据库、日记元数据管理、书架列表。
 - DataStore 设置存储。
-- Coil 图片加载与缩略图展示。
+- Coil 图片加载（当前用 `BitmapFactory` 下采样解码缩略图）。
 - 单页阅读模式、仿真立体书翻页、3D 渲染。
+- 收藏、日期、描述等页面编辑界面（数据库字段已预留）。
 - OCR、云同步、账号系统、在线 AI、广告或付费功能。
 - 正式签名与 Google Play 发布配置。
 
-当前选择图片后**不会持久化**，退出应用后选择记录会丢失。这是本阶段的预期行为。
 
 ## 技术栈与版本
 
@@ -51,12 +51,16 @@ Leafra 是一个用于把**纸质日记电子化**的 Android 应用。你可以
 | androidx.activity:activity-compose | 1.9.3 | 提供 Photo Picker 与 Compose 集成 |
 | androidx.lifecycle:lifecycle-runtime-ktx | 2.8.6 | |
 | Material 3 | 由 Compose BOM 管理 | 不额外引入大型 UI 库 |
+| androidx.room:room-runtime / room-ktx | 2.6.1 | 最低 compileSdk 34，与项目一致；2.7+ 要求 compileSdk 35 |
+| androidx.room:room-compiler（KSP） | 2.6.1 | 注解处理器，通过 KSP 生成代码 |
+| KSP | 2.0.21-1.0.28 | 必须与 Kotlin 2.0.21 严格对应 |
 
 版本兼容关系（升级时请整体考虑，不要只改其中一个）：
 
 - AGP 8.7.3 ↔ Gradle 8.9 ↔ JDK 17
-- Kotlin 2.0.21 ↔ Compose Compiler 插件 2.0.21
+- Kotlin 2.0.21 ↔ Compose Compiler 插件 2.0.21 ↔ KSP 2.0.21-1.0.28
 - Compose BOM 2024.10.01 中的依赖均兼容 compileSdk 34 / minSdk 26
+- Room 2.6.1 的 `minCompileSdk` 为 34，升级 compileSdk 之前不要单独升级 Room
 
 ## 目录结构
 
@@ -67,11 +71,17 @@ Leafra 是一个用于把**纸质日记电子化**的 Android 应用。你可以
 │  ├─ build.gradle.kts                  # App 模块构建配置与依赖
 │  ├─ proguard-rules.pro
 │  └─ src/main/
-│     ├─ AndroidManifest.xml
+│     ├─ AndroidManifest.xml            # 只有 MainActivity，无任何用户可见权限
 │     ├─ java/leafra/sitrmoo/com/
+│     │  ├─ LeafraApplication.kt        # 进程级数据库/仓库初始化与孤立文件清理
 │     │  ├─ MainActivity.kt             # 入口 Activity
+│     │  ├─ data/
+│     │  │  ├─ DiaryRepository.kt       # 唯一数据入口：事务、回滚、引用计数
+│     │  │  ├─ ImageStore.kt            # 私有目录图片复制/删除
+│     │  │  ├─ local/                   # Room 实体、DAO、Database
+│     │  │  └─ model/                   # Notebook / DiaryPage / ImportResult
 │     │  └─ ui/
-│     │     ├─ home/HomeScreen.kt       # 中文首页 + Photo Picker
+│     │     ├─ home/HomeScreen.kt       # 首页：日记本、导入、缩略图
 │     │     └─ theme/                   # 纸张风格配色与字体
 │     └─ res/                           # 文案、主题、启动图标
 ├─ gradle/wrapper/                      # Gradle Wrapper（含官方 JAR）
@@ -261,14 +271,23 @@ Kotlin 2.0+ 必须应用 `org.jetbrains.kotlin.plugin.compose`，并且版本与
 ## 数据与隐私
 
 - 当前版本不申请存储权限，通过系统 Photo Picker 读取你主动选择的图片。
+- 导入的图片复制到应用私有目录 `files/diary-images/`，数据库 `leafra.db` 只保存相对路径；卸载应用时随应用数据一起删除。
 - 应用没有网络权限，不上传任何图片或日记内容。
 - 不包含账号系统、云端数据库、OCR 或在线 AI。
 - `.gitignore` 已排除签名文件、密钥、`local.properties`、构建产物，以及 `diary-images/` 等私人日记图片目录。请勿把私人日记图片或 API 密钥提交到 Git。
 
+## 数据模型与关键约定
+
+- `notebooks`：`id`（UUID）、`name`、`coverImagePath`、`createdAt`、`updatedAt`、`lastReadPageId`（预留阅读进度）。
+- `pages`：`id`（UUID）、`notebookId`（外键，级联删除）、`sortOrder`、`entryDate?`、`description?`、`imagePath?`、`isBlank`、`isFavorite`、`createdAt`。
+- 页码不落库，由 Repository 按 `sortOrder` 计算（从 1 开始连续）；页面以 `id` 寻址，不能把页码当主键。
+- 导入是“先复制文件，再单事务写入”；任一步失败都会删除本次文件并回滚事务。
+- 删除日记本按引用计数清理图片；数据库未引用的孤立图片在应用启动时清理。
+
 ## 下一步开发建议
 
-1. 将选中的图片复制到应用私有目录，并记录到 Room。
-2. 用 DataStore 保存阅读设置。
-3. 引入 Coil 展示缩略图与阅读页。
-4. 实现普通单页阅读模式。
-5. 在单页阅读稳定后，再实现仿真翻页效果。
+1. 用 DataStore 保存阅读设置。
+2. 引入 Coil 展示缩略图与阅读页。
+3. 实现普通单页阅读模式，并接入 `setLastReadPage` 记录阅读进度。
+4. 页面收藏、日期与描述的编辑界面。
+5. 单页阅读稳定后，再实现仿真翻页效果。
