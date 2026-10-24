@@ -1,10 +1,10 @@
-package com.example.diarybook.ui.theme
+package leafra.sitrmoo.com.ui.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
-private val DiaryBookColorScheme = lightColorScheme(
+private val LeafraColorScheme = lightColorScheme(
     primary = AccentBrown,
     onPrimary = PaperCream,
     primaryContainer = AccentSoft,
@@ -21,10 +21,10 @@ private val DiaryBookColorScheme = lightColorScheme(
 )
 
 @Composable
-fun DiaryBookTheme(content: @Composable () -> Unit) {
+fun LeafraTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = DiaryBookColorScheme,
-        typography = DiaryBookTypography,
+        colorScheme = LeafraColorScheme,
+        typography = LeafraTypography,
         content = content,
     )
 }

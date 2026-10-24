@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Diary Book</string>
+    <string name="app_name">Leafra</string>
     <string name="home_title">我的日记</string>
     <string name="home_subtitle">把纸页收进一本电子书，随时慢慢翻阅。</string>
     <string name="empty_shelf_label">空书架</string>

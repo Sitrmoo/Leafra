@@ -1,4 +1,4 @@
-package com.example.diarybook.ui.home
+package leafra.sitrmoo.com.ui.home
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -37,9 +37,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.diarybook.R
-import com.example.diarybook.ui.theme.PaperBackground
-import com.example.diarybook.ui.theme.PaperCream
+import leafra.sitrmoo.com.R
+import leafra.sitrmoo.com.ui.theme.PaperBackground
+import leafra.sitrmoo.com.ui.theme.PaperCream
 import kotlinx.coroutines.launch
 
 /** Photo Picker 单次最多选择的图片数量。 */

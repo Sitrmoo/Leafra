@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.diarybook"
+    namespace = "leafra.sitrmoo.com"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.diarybook"
+        applicationId = "leafra.sitrmoo.com"
         minSdk = 26
         targetSdk = 34
         versionCode = 1

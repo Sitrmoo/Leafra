@@ -1,4 +1,4 @@
-package com.example.diarybook.ui.theme
+package leafra.sitrmoo.com.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

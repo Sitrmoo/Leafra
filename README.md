@@ -1,6 +1,10 @@
-# Diary Book
+# Leafra
 
-一个用于把**纸质日记电子化**的 Android 应用。你可以从手机相册导入日记扫描图片，把它们整理成一本电子书，并逐步获得接近纸质书的阅读体验。
+Leafra 是一个用于把**纸质日记电子化**的 Android 应用。你可以从手机相册导入日记扫描图片，把它们整理成一本电子书，并逐步获得接近纸质书的阅读体验。
+
+- 应用名：**Leafra**
+- 包名 / applicationId：`leafra.sitrmoo.com`
+- 仓库：`https://github.com/Sitrmoo/Leafra.git`
 
 本仓库当前处于**项目初始化阶段**，只包含可运行的首页骨架和基础图片选择功能，尚未实现完整的书籍管理与翻页阅读。
 
@@ -34,6 +38,8 @@
 | 组件 | 固定版本 | 说明 |
 | --- | --- | --- |
 | JDK | 17（Temurin） | 本地与 GitHub Actions 一致 |
+| 应用名 | Leafra | `strings.xml` 中的 `app_name` |
+| 包名 / applicationId / namespace | `leafra.sitrmoo.com` | 源码目录为 `java/leafra/sitrmoo/com/` |
 | Gradle | 8.9 | 由 `gradle/wrapper/gradle-wrapper.properties` 固定，Wrapper JAR 由官方 Gradle 8.9 生成 |
 | Android Gradle Plugin | 8.7.3 | 要求 Gradle 8.9+、JDK 17 |
 | Kotlin | 2.0.21 | 与 Compose Compiler 插件同版本 |
@@ -62,7 +68,7 @@
 │  ├─ proguard-rules.pro
 │  └─ src/main/
 │     ├─ AndroidManifest.xml
-│     ├─ java/com/example/diarybook/
+│     ├─ java/leafra/sitrmoo/com/
 │     │  ├─ MainActivity.kt             # 入口 Activity
 │     │  └─ ui/
 │     │     ├─ home/HomeScreen.kt       # 中文首页 + Photo Picker
@@ -81,25 +87,33 @@
 
 本项目**不要求**你在低配置电脑上安装或运行 Android Studio。推荐流程是：把代码推到 GitHub，由云端构建 APK，手机直接下载安装。
 
-### 1. 在 GitHub 创建空仓库
+### 1. 仓库与远程地址
 
-在 GitHub 上新建一个仓库（可以为 Private），**不要**勾选自动生成 README、`.gitignore` 或 License，避免首次推送冲突。
+本项目已关联：
 
-### 2. 推送本地项目
+```text
+https://github.com/Sitrmoo/Leafra.git
+```
+
+### 2. 推送本地修改
 
 在项目目录打开 PowerShell：
 
 ```powershell
-cd C:\Website\rj
-git init
-git branch -M main
+cd C:\Website\leafra
 git add .
-git commit -m "chore: initialize Diary Book Android project"
-git remote add origin https://github.com/<你的用户名>/<你的仓库名>.git
-git push -u origin main
+git commit -m "feat: rename app to Leafra"
+git push origin main
 ```
 
-如果 GitHub 仓库不是空的，先执行：
+如果是从其他电脑重新克隆：
+
+```powershell
+git clone https://github.com/Sitrmoo/Leafra.git
+cd Leafra
+```
+
+如果远程仓库已有新提交，先执行：
 
 ```powershell
 git pull --rebase origin main
@@ -119,14 +133,14 @@ git pull --rebase origin main
 
 也可以在 GitHub 页面手动触发：
 
-**Actions → Build Debug APK → Run workflow → 选择 main → Run workflow**
+**Actions → Build Leafra Debug APK → Run workflow → 选择 main → Run workflow**
 
 ### 4. 下载 APK
 
 构建成功后：
 
 1. 打开 **Actions** 页面，点击最新的绿色构建记录。
-2. 在页面底部 **Artifacts** 区域下载 `diary-book-debug-apk`。
+2. 在页面底部 **Artifacts** 区域下载 `leafra-debug-apk`。
 3. 解压 ZIP，得到 `app-debug.apk`。
 
 Artifact 默认保留 30 天（工作流中 `retention-days: 30`）。
@@ -152,7 +166,7 @@ Artifact 默认保留 30 天（工作流中 `retention-days: 30`）。
 
 1. 把 `app-debug.apk` 通过微信文件传输、数据线、网盘或 GitHub 下载到手机。
 2. 在手机上点击 APK。系统提示“不允许安装未知来源应用”时，进入设置允许当前文件管理器/浏览器安装应用。
-3. 完成安装，桌面会出现 **Diary Book** 图标。
+3. 完成安装，桌面会出现 **Leafra** 图标。
 4. 最低支持 Android 8.0（API 26）。
 
 说明：
@@ -178,7 +192,7 @@ sdk.dir=C\:\\Android
 Windows 下运行：
 
 ```powershell
-cd C:\Website\rj
+cd C:\Website\leafra
 .\gradlew.bat :app:assembleDebug
 ```
 

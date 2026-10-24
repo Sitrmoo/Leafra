@@ -1,4 +1,4 @@
-name: Build Debug APK
+name: Build Leafra Debug APK
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    name: Build debug APK
+    name: Build Leafra debug APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -50,7 +50,7 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4.6.0
         with:
-          name: diary-book-debug-apk
+          name: leafra-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30

@@ -1,0 +1,11 @@
+# 统一文本换行符，避免 Windows 的 core.autocrlf 把 Linux 脚本改成 CRLF。
+* text=auto eol=lf
+*.bat text eol=crlf
+gradlew text eol=lf
+
+# 二进制文件不要做换行或文本转换
+*.jar binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary

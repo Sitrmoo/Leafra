@@ -1,4 +1,4 @@
-package com.example.diarybook.ui.theme
+package leafra.sitrmoo.com.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
@@ -7,7 +7,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 // 标题使用衬线字体，营造纸质书的阅读感；正文保持系统默认字体。
-val DiaryBookTypography = Typography(
+val LeafraTypography = Typography(
     headlineLarge = TextStyle(
         fontFamily = FontFamily.Serif,
         fontWeight = FontWeight.SemiBold,

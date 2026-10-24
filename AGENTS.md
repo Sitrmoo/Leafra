@@ -4,10 +4,10 @@
 
 ## 1. 项目目标
 
-**Leafra / Diary Book**：把纸质日记的扫描照片整理成一本可翻阅的电子书。
+**Leafra**：把纸质日记的扫描照片整理成一本可翻阅的电子书。
 
-- 应用名：`Diary Book`（`app/src/main/res/values/strings.xml` 中的 `app_name`）
-- 包名 / applicationId / namespace：`com.example.diarybook`
+- 应用名：`Leafra`（`app/src/main/res/values/strings.xml` 中的 `app_name`）
+- 包名 / applicationId / namespace：`leafra.sitrmoo.com`
 - 当前阶段：**项目初始化阶段**。只有可运行的首页骨架 + 系统 Photo Picker 选图，选中的图片不落盘、不持久化。
 - 项目目录：`C:\Website\leafra`（Git 远程 `https://github.com/Sitrmoo/Leafra.git`，分支 `main`）
 
@@ -53,15 +53,15 @@ Gradle Wrapper 完整性基线（改动 wrapper 时必须同步更新）：
 │  ├─ proguard-rules.pro
 │  └─ src/main/
 │     ├─ AndroidManifest.xml       # 只有 MainActivity，无任何用户可见权限
-│     ├─ java/com/example/diarybook/
-│     │  ├─ MainActivity.kt        # 入口，setContent { DiaryBookTheme { HomeScreen() } }
+│     ├─ java/leafra/sitrmoo/com/
+│     │  ├─ MainActivity.kt        # 入口，setContent { LeafraTheme { HomeScreen() } }
 │     │  └─ ui/
 │     │     ├─ home/HomeScreen.kt  # 中文首页 + Photo Picker
 │     │     └─ theme/              # Color.kt / Theme.kt / Type.kt（纸张色系、衬线标题）
 │     └─ res/                      # strings.xml、themes.xml、colors.xml、自适应启动图标
 ├─ gradle/wrapper/
 ├─ build.gradle.kts                # 只声明插件版本并 apply false
-├─ settings.gradle.kts             # rootProject.name = "DiaryBook"; include(":app")
+├─ settings.gradle.kts             # rootProject.name = "Leafra"; include(":app")
 ├─ gradle.properties
 ├─ gradlew / gradlew.bat
 └─ README.md
@@ -71,7 +71,7 @@ Gradle Wrapper 完整性基线（改动 wrapper 时必须同步更新）：
 
 - UI 全部用 Kotlin + Jetpack Compose + Material 3，不引入 XML 布局。
 - 所有用户可见文字放进 `res/values/strings.xml`，通过 `stringResource(...)` 引用，不在 Composable 里硬编码中文。
-- 新界面放在 `com.example.diarybook.ui.<feature>` 下，主题色/字体只从 `ui/theme` 取。
+- 新界面放在 `leafra.sitrmoo.com.ui.<feature>` 下，主题色/字体只从 `ui/theme` 取。
 - 新增依赖前先确认 Compose BOM 已覆盖；能不加就不加。
 
 ## 5. 构建与验证
@@ -99,7 +99,7 @@ Gradle Wrapper 完整性基线（改动 wrapper 时必须同步更新）：
 
 `.github/workflows/android.yml`：`push` 到 `main` 或手动 `workflow_dispatch` 触发，`ubuntu-latest` + JDK 17（Temurin）+ Gradle 缓存。
 
-流程：校验 wrapper 文件存在 → `chmod +x ./gradlew` → `./gradlew --version` → `./gradlew :app:assembleDebug --stacktrace --no-daemon` → 上传 `app/build/outputs/apk/debug/app-debug.apk` 为 Artifact `diary-book-debug-apk`（`if-no-files-found: error`，保留 30 天）。
+流程：校验 wrapper 文件存在 → `chmod +x ./gradlew` → `./gradlew --version` → `./gradlew :app:assembleDebug --stacktrace --no-daemon` → 上传 `app/build/outputs/apk/debug/app-debug.apk` 为 Artifact `leafra-debug-apk`（`if-no-files-found: error`，保留 30 天）。
 
 修改 CI 时注意：
 
