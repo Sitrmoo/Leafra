@@ -4,6 +4,13 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -44,6 +51,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,6 +63,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
@@ -76,9 +85,6 @@ import leafra.sitrmoo.com.data.model.ImportResult
 import leafra.sitrmoo.com.ui.components.FavoriteStar
 import leafra.sitrmoo.com.ui.components.BlankPageStyle
 import leafra.sitrmoo.com.ui.components.PageImage
-import leafra.sitrmoo.com.ui.theme.PaperBackground
-import leafra.sitrmoo.com.ui.theme.PaperCream
-
 /** 日记本内的三种视图；立体视图本阶段只做双页占位。 */
 private enum class EditorView(val labelRes: Int) {
     STACK(R.string.view_stack),
@@ -90,6 +96,7 @@ private enum class EditorView(val labelRes: Int) {
 fun NotebookScreen(
     repository: DiaryRepository,
     notebookId: String,
+    initialPageId: String? = null,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -102,13 +109,24 @@ fun NotebookScreen(
         repository.pages(notebookId)
     }.collectAsState(initial = emptyList())
 
-    var isEditing by rememberSaveable(notebookId) { mutableStateOf(false) }
-    var viewOrdinal by rememberSaveable(notebookId) {
+    var isEditing by rememberSaveable(notebookId, initialPageId) { mutableStateOf(false) }
+    var viewOrdinal by rememberSaveable(notebookId, initialPageId) {
         mutableIntStateOf(EditorView.SINGLE.ordinal)
     }
     val editorView = EditorView.entries[
         viewOrdinal.coerceIn(0, EditorView.entries.lastIndex)
     ]
+    val availableViews: List<EditorView> = if (isEditing) {
+        EditorView.entries
+    } else {
+        listOf(EditorView.STACK, EditorView.SINGLE)
+    }
+
+    LaunchedEffect(isEditing, editorView) {
+        if (!isEditing && editorView == EditorView.OUTLINE) {
+            viewOrdinal = EditorView.STACK.ordinal
+        }
+    }
 
     var editingPage by remember { mutableStateOf<DiaryPage?>(null) }
     var deletingPage by remember { mutableStateOf<DiaryPage?>(null) }
@@ -126,7 +144,7 @@ fun NotebookScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(PaperBackground),
+                .background(MaterialTheme.colorScheme.background),
             contentAlignment = Alignment.Center,
         ) {
             CircularProgressIndicator()
@@ -135,6 +153,26 @@ fun NotebookScreen(
     }
 
     BackHandler(onBack = onBack)
+
+    var lastVisiblePageId by remember(notebookId, initialPageId) {
+        mutableStateOf(initialPageId ?: notebook.lastReadPageId)
+    }
+    var pendingSinglePageId by remember { mutableStateOf<String?>(null) }
+    var zoomOriginX by remember { mutableFloatStateOf(0.5f) }
+
+    fun updateZoomOrigin(pageId: String?) {
+        val index = pages.indexOfFirst { it.id == pageId }
+        zoomOriginX = when {
+            index < 0 -> 0.5f
+            index % 2 == 0 -> 0.75f
+            else -> 0.25f
+        }
+    }
+
+    val saveProgress: suspend (DiaryPage) -> Unit = { page ->
+        lastVisiblePageId = page.id
+        repository.setLastReadPage(notebookId, page.id)
+    }
 
     val appendImagesPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(MAX_APPEND_IMAGES),
@@ -264,64 +302,130 @@ fun NotebookScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Brush.verticalGradient(listOf(PaperBackground, PaperCream)))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.background,
+                            MaterialTheme.colorScheme.surface,
+                        ),
+                    ),
+                )
                 .padding(innerPadding),
         ) {
             EditorViewTabs(
                 selected = editorView,
-                onSelect = { viewOrdinal = it.ordinal },
+                views = availableViews,
+                onSelect = { view ->
+                    pendingSinglePageId = null
+                    updateZoomOrigin(lastVisiblePageId ?: notebook.lastReadPageId)
+                    viewOrdinal = view.ordinal
+                },
             )
 
             if (isBusy) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
 
-            Box(
+            AnimatedContent(
+                targetState = editorView,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-            ) {
-                when (editorView) {
-                    EditorView.STACK -> StackPagesView(
-                        notebookId = notebookId,
-                        pages = pages,
-                        repository = repository,
-                        isEditing = isEditing,
-                        onEditPage = { page -> if (isEditing) editingPage = page },
-                    )
+                transitionSpec = {
+                    when {
+                        initialState == EditorView.STACK &&
+                            targetState == EditorView.SINGLE -> {
+                            (
+                                fadeIn(tween(260)) +
+                                    scaleIn(
+                                        initialScale = 0.92f,
+                                        animationSpec = tween(360),
+                                        transformOrigin = TransformOrigin(zoomOriginX, 0.5f),
+                                    )
+                                ) togetherWith (
+                                fadeOut(tween(180)) +
+                                    scaleOut(targetScale = 1.05f, animationSpec = tween(260))
+                                )
+                        }
 
-                    EditorView.SINGLE -> SinglePageView(
-                        pages = pages,
-                        repository = repository,
-                        isEditing = isEditing,
-                        initialPageId = notebook.lastReadPageId,
-                        onPageChanged = { page ->
-                            repository.setLastReadPage(notebookId, page.id)
-                        },
-                        onEditPage = { page -> editingPage = page },
-                        onToggleFavorite = { page -> toggleFavorite(page) },
-                    )
+                        initialState == EditorView.SINGLE &&
+                            targetState == EditorView.STACK -> {
+                            (
+                                fadeIn(tween(260)) +
+                                    scaleIn(initialScale = 1.05f, animationSpec = tween(360))
+                                ) togetherWith (
+                                fadeOut(tween(180)) +
+                                    scaleOut(
+                                        targetScale = 0.92f,
+                                        animationSpec = tween(260),
+                                        transformOrigin = TransformOrigin(zoomOriginX, 0.5f),
+                                    )
+                                )
+                        }
 
-                    EditorView.OUTLINE -> OutlineView(
-                        notebookId = notebookId,
-                        pages = pages,
-                        repository = repository,
-                        isEditing = isEditing,
-                        isBusy = isBusy,
-                        onEditPage = { page -> editingPage = page },
-                        onToggleFavorite = { page -> toggleFavorite(page) },
-                        onAddImages = {
-                            if (!isBusy) {
-                                appendImagesPicker.launch(
-                                    PickVisualMediaRequest(
-                                        ActivityResultContracts.PickVisualMedia.ImageOnly,
-                                    ),
+                        else -> fadeIn(tween(220)) togetherWith fadeOut(tween(160))
+                    }
+                },
+                label = "notebook-view",
+            ) { view ->
+                Box(modifier = Modifier.fillMaxSize()) {
+                    when (view) {
+                        EditorView.STACK -> {
+                            if (pages.isEmpty()) {
+                                EmptyNotebook(isEditing = isEditing)
+                            } else {
+                                BookSpreadView(
+                                    notebook = notebook,
+                                    pages = pages,
+                                    repository = repository,
+                                    isEditing = isEditing,
+                                    initialPageId = lastVisiblePageId ?: notebook.lastReadPageId,
+                                    onOpenSinglePage = { page ->
+                                        updateZoomOrigin(page.id)
+                                        pendingSinglePageId = page.id
+                                        viewOrdinal = EditorView.SINGLE.ordinal
+                                    },
+                                    onEditPage = { page ->
+                                        if (isEditing) editingPage = page
+                                    },
+                                    onPageChanged = saveProgress,
                                 )
                             }
-                        },
-                        onAddBlankPage = { addBlankPage() },
-                        onReorder = reorderAction,
-                    )
+                        }
+
+                        EditorView.SINGLE -> SinglePageView(
+                            pages = pages,
+                            repository = repository,
+                            isEditing = isEditing,
+                            initialPageId = pendingSinglePageId
+                                ?: lastVisiblePageId
+                                ?: notebook.lastReadPageId,
+                            onPageChanged = saveProgress,
+                            onEditPage = { page -> editingPage = page },
+                            onToggleFavorite = { page -> toggleFavorite(page) },
+                        )
+
+                        EditorView.OUTLINE -> OutlineView(
+                            notebookId = notebookId,
+                            pages = pages,
+                            repository = repository,
+                            isEditing = isEditing,
+                            isBusy = isBusy,
+                            onEditPage = { page -> editingPage = page },
+                            onToggleFavorite = { page -> toggleFavorite(page) },
+                            onAddImages = {
+                                if (!isBusy) {
+                                    appendImagesPicker.launch(
+                                        PickVisualMediaRequest(
+                                            ActivityResultContracts.PickVisualMedia.ImageOnly,
+                                        ),
+                                    )
+                                }
+                            },
+                            onAddBlankPage = { addBlankPage() },
+                            onReorder = reorderAction,
+                        )
+                    }
                 }
             }
         }
@@ -518,6 +622,7 @@ private fun BackArrow(color: Color) {
 @Composable
 private fun EditorViewTabs(
     selected: EditorView,
+    views: List<EditorView>,
     onSelect: (EditorView) -> Unit,
 ) {
     Row(
@@ -526,7 +631,7 @@ private fun EditorViewTabs(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        EditorView.entries.forEach { view ->
+        views.forEach { view ->
             val isSelected = view == selected
             Surface(
                 onClick = { onSelect(view) },

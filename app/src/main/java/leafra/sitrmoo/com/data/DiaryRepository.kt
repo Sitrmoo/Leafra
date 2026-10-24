@@ -25,6 +25,7 @@ import leafra.sitrmoo.com.data.model.DiaryPage
 import leafra.sitrmoo.com.data.model.ImportFailureReason
 import leafra.sitrmoo.com.data.model.ImportResult
 import leafra.sitrmoo.com.data.model.Notebook
+import leafra.sitrmoo.com.data.model.PageResult
 
 /**
  * 应用唯一的数据入口。
@@ -54,6 +55,32 @@ class DiaryRepository(
     /** 书架列表，按更新时间倒序。 */
     val notebooks: Flow<List<Notebook>> =
         notebookDao.observeSummaries().map { rows -> rows.map { it.toModel() } }
+
+    /** 全量页面投影，供搜索与收藏列表使用；页码按各日记本的当前顺序计算。 */
+    val pageResults: Flow<List<PageResult>> =
+        pageDao.observePagesWithNotebook().map { rows ->
+            val counters = mutableMapOf<String, Int>()
+            rows.map { row ->
+                val page = row.page
+                val pageNumber = (counters[page.notebookId] ?: 0) + 1
+                counters[page.notebookId] = pageNumber
+                PageResult(
+                    pageId = page.id,
+                    notebookId = page.notebookId,
+                    notebookName = row.notebookName,
+                    pageNumber = pageNumber,
+                    imagePath = page.imagePath,
+                    isBlank = page.isBlank,
+                    entryDate = page.entryDate,
+                    description = page.description,
+                    isFavorite = page.isFavorite,
+                )
+            }
+        }
+
+    /** 收藏列表：页面被删除或取消收藏后自动从 Flow 中消失。 */
+    val favoritePages: Flow<List<PageResult>> =
+        pageResults.map { results -> results.filter { it.isFavorite } }
 
     /**
      * 指定日记本的页面流。

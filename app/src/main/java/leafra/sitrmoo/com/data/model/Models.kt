@@ -41,6 +41,19 @@ data class DiaryPage(
     val createdAt: Long,
 )
 
+/** 页面级搜索结果 / 收藏列表项；页码在仓库层按当前排序动态计算。 */
+data class PageResult(
+    val pageId: String,
+    val notebookId: String,
+    val notebookName: String,
+    val pageNumber: Int,
+    val imagePath: String?,
+    val isBlank: Boolean,
+    val entryDate: Long?,
+    val description: String?,
+    val isFavorite: Boolean,
+)
+
 /** 本地生成封面的预设模板；id 持久化在 `notebooks.coverStyle` 中。 */
 enum class CoverStyle(val id: Int) {
     SAGE(0),

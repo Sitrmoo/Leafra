@@ -8,13 +8,13 @@
 
 - 应用名（显示名）：`Leafora`（`app/src/main/res/values/strings.xml` 中的 `app_name`）
 - 包名 / applicationId / namespace：`leafra.sitrmoo.com`（不要因为改名而修改）
-- 当前阶段：**阶段 4 已完成（单页阅读器）**。进入日记本默认单页阅读，支持滑动/箭头翻页、双指缩放、阅读模式收藏与按日记本恢复进度；编辑模式继续复用阶段 3 的页面管理。下一阶段为真实立体翻页。
+- 当前阶段：**阶段 6 已完成（搜索、收藏、设置与关于）**。顶部可搜索日记本名称/页面描述/日期，收藏页与设置页可用；主题支持亮色/深色/跟随系统并持久化，日期显示可关闭但数据保留。下一阶段为高级纸张弯曲或备份。
 - 项目目录：`C:\Website\leafra`（Git 远程 `https://github.com/Sitrmoo/Leafra.git`，分支 `main`）
 
 ## 2. 硬性约束（不要做）
 
 1. **不要添加 OCR、云同步、账号系统、在线 AI、广告或付费功能。**
-2. **不要实现复杂翻页。** 当前只允许先做普通单页阅读；仿真立体翻页 / 3D 渲染必须等单页阅读稳定后另行讨论。
+2. **立体书只能用轻量 Compose 实现**（布局 + `graphicsLayer` 透视 + 阴影），禁止引入游戏引擎或外部 3D 渲染框架；真实纸张弯曲等高级变形需另行评估。单页阅读必须始终保留为备用模式。
 3. **不要新增存储或网络权限。** 选图只能走系统 Photo Picker（`ActivityResultContracts.PickVisualMedia` / `PickMultipleVisualMedia`），不申请 `READ_MEDIA_IMAGES`、`READ_EXTERNAL_STORAGE`、`CAMERA`、`INTERNET`。
 4. **不要引入动态版本号**（`+`、`latest.release`、`SNAPSHOT`）。所有依赖版本必须显式固定。
 5. **不要单独升级某个版本。** Gradle / AGP / Kotlin / Compose 是联动的一整套，见第 3 节；需要升级时整体评估并同步更新 README。
@@ -25,6 +25,7 @@
 10. **品牌资源以 `branding/leafora_icon.svg` 为准。** 不要自行绘制替代 Logo；更新图标时同步维护 `drawable/ic_launcher_foreground.xml`、`ic_launcher_monochrome.xml`、`ic_brand_mark.xml` 与 `branding/README.md`，并保持色板同步。
 11. **页面 ID 必须稳定且不复用。** 页码只能按当前排序动态计算（从 1 连续），禁止把页码当主键或写入数据库；空白占位页必须用 `isBlank = true` + `imagePath = null` 表示，不能伪装成已有图片。
 12. **阅读进度只保存页面 ID**（`notebooks.lastReadPageId`），禁止保存页码或列表下标；页面删除时必须清除失效进度，重排后按 ID 重新定位。
+13. **搜索与收藏必须来自本地 Room 数据**，禁止演示数据、网络搜索或读取图片文字；设置只能保存在本地 DataStore，不得新增网络请求或 API Key。
 
 ## 3. 版本矩阵（必须保持兼容）
 
@@ -41,8 +42,9 @@
 | androidx.room:room-runtime / room-ktx | 2.6.1 | `minCompileSdk` 为 34；2.7+ 要求 compileSdk 35，不要单独升级 |
 | androidx.room:room-compiler（KSP） | 2.6.1 | 由 KSP 生成代码 |
 | KSP | 2.0.21-1.0.28 | 必须与 Kotlin 2.0.21 严格对应，升级 Kotlin 时同步升级 |
+| androidx.datastore:datastore-preferences | 1.1.1 | 本地设置持久化；只保存主题与日期显示开关 |
 
-已固定的依赖：`androidx.core:core-ktx:1.13.1`、`androidx.lifecycle:lifecycle-runtime-ktx:2.8.6`、`androidx.activity:activity-compose:1.9.3`、`androidx.room:room-runtime:2.6.1`、`androidx.room:room-ktx:2.6.1`，加 Compose BOM（`ui`、`ui-graphics`、`ui-tooling-preview`、`material3`）与 `ksp("androidx.room:room-compiler:2.6.1")`。
+已固定的依赖：`androidx.core:core-ktx:1.13.1`、`androidx.lifecycle:lifecycle-runtime-ktx:2.8.6`、`androidx.activity:activity-compose:1.9.3`、`androidx.room:room-runtime:2.6.1`、`androidx.room:room-ktx:2.6.1`、`androidx.datastore:datastore-preferences:1.1.1`，加 Compose BOM（`ui`、`ui-graphics`、`ui-tooling-preview`、`material3`）与 `ksp("androidx.room:room-compiler:2.6.1")`。
 
 Gradle Wrapper 完整性基线（改动 wrapper 时必须同步更新）：
 
@@ -61,24 +63,33 @@ Gradle Wrapper 完整性基线（改动 wrapper 时必须同步更新）：
 │  └─ src/main/
 │     ├─ AndroidManifest.xml       # MainActivity + LeafraApplication，无任何用户可见权限
 │     ├─ java/leafra/sitrmoo/com/
-│     │  ├─ LeafraApplication.kt   # 数据库/仓库初始化、启动时清理孤立图片
-│     │  ├─ MainActivity.kt        # 入口，setContent { LeafraTheme { HomeScreen(repository) } }
+│     │  ├─ LeafraApplication.kt   # 数据库/仓库/设置初始化、启动时清理孤立图片
+│     │  ├─ MainActivity.kt        # 导航、主题/系统栏、设置注入
 │     │  ├─ data/
-│     │  │  ├─ DiaryRepository.kt  # 唯一数据入口：导入事务、回滚、引用计数、重命名/封面
+│     │  │  ├─ DiaryRepository.kt  # 数据入口：事务、回滚、引用计数、搜索/收藏投影
 │     │  │  ├─ ImageStore.kt       # 私有目录图片复制/删除/路径校验
+│     │  │  ├─ settings/           # DataStore 设置（主题、日期显示）
 │     │  │  ├─ local/              # Entities.kt、NotebookDao.kt、PageDao.kt、LeafraDatabase.kt
-│     │  │  └─ model/              # Models.kt（Notebook / DiaryPage / CoverStyle / 结果类型）
+│     │  │  └─ model/              # Models.kt（Notebook / DiaryPage / PageResult 等）
 │     │  └─ ui/
+│     │     ├─ about/AboutScreen.kt         # 关于页
 │     │     ├─ components/NotebookCover.kt  # 本地封面模板
 │     │     ├─ components/PageImage.kt      # 页面图片与空白页占位
 │     │     ├─ components/FavoriteStar.kt   # 收藏星标
-│     │     ├─ home/HomeScreen.kt           # 书架网格、新建/重命名/换封面/删除
-│     │     ├─ home/ShelfTopBar.kt          # 固定顶栏：官方 Logo、搜索占位、菜单
+│     │     ├─ components/PageResultRow.kt  # 搜索/收藏共用条目
+│     │     ├─ components/SimpleTopBar.kt   # 二级页面顶栏
+│     │     ├─ favorites/FavoritesScreen.kt # 收藏列表
+│     │     ├─ home/HomeScreen.kt           # 书架、搜索、新建/重命名/换封面/删除
+│     │     ├─ home/ShelfTopBar.kt          # 固定顶栏：官方 Logo、搜索框、菜单
+│     │     ├─ home/SearchFilter.kt         # 名称/描述/日期匹配
 │     │     ├─ notebook/NotebookScreen.kt   # 阅读/编辑、三视图、页面操作
+│     │     ├─ notebook/BookSpreadView.kt   # 立体书跨页、透视与翻页动画
 │     │     ├─ notebook/OutlineView.kt      # 大纲与拖动排序
 │     │     ├─ notebook/ReaderPage.kt       # 单页缩放手势与翻页箭头
 │     │     ├─ notebook/PageEditDialog.kt   # 描述/日期/收藏/替换/删除
-│     │     └─ theme/              # Color.kt / Theme.kt / Type.kt（鼠尾草绿 + 奶油白）
+│     │     ├─ settings/SettingsScreen.kt   # 主题与日期设置
+│     │     ├─ settings/SettingsLocals.kt   # 日期显示 CompositionLocal
+│     │     └─ theme/              # Color.kt / Theme.kt / Type.kt（亮色 + 深色）
 │     └─ res/                      # strings、themes、自适应图标、ic_brand_mark 等
 ├─ branding/                       # leafora_icon.svg 官方 Logo 与品牌规范
 ├─ gradle/wrapper/
@@ -129,21 +140,29 @@ Gradle Wrapper 完整性基线（改动 wrapper 时必须同步更新）：
 - 保留 `chmod +x ./gradlew`（Windows 下提交的 `gradlew` 可能没有可执行位）。
 - Artifact 路径必须与 Gradle 实际输出一致。
 
-## 7. 进度基线（2026-10-24 阶段 4 核对）
+## 7. 进度基线（2026-10-24 阶段 6 核对）
 
 已完成：
 
 - Gradle Wrapper 8.9 完整（jar + properties + 两个启动脚本），校验和与官方一致。
 - 应用显示名统一为 `Leafora`（`strings.xml` 的 `app_name`），包名 / applicationId / namespace 未变。
 - 品牌视觉：官方 `branding/leafora_icon.svg` 已转换为自适应启动图标前景、Android 13 单色主题图标与首页顶栏图形；图标底色为奶油白。
-- 主题：Material 3 色板统一为鼠尾草绿 + 奶油白（含 `surfaceContainer` 等角色），状态栏 / 导航栏固定深色图标。
-- 固定顶栏：官方 Logo（`ic_brand_mark`）、搜索框占位、菜单（新建日记 / 收藏 / 设置 / 关于）；未实现项给出明确的“开发中”提示。
+- 主题：亮色（鼠尾草绿 + 奶油白）与深色 Material 3 色板，支持跟随系统；状态栏 / 导航栏图标随主题切换；设置通过 DataStore 持久化。
+- 固定顶栏：官方 Logo 在左、可输入搜索框居中、菜单在右；搜索匹配日记本名称、页面描述、页面日期，结果使用缩略图 + 名称 + 页码 + 日期/描述的横向条目，点击定位对应页面。
+- 收藏：只收藏单页，与搜索结果共用条目布局；阅读模式和收藏列表均可取消收藏；页面删除后自动从列表消失。
+- 设置与关于：主题三选项（亮色 / 深色 / 跟随系统）、页面日期显示开关、关于页展示应用名/版本/本地隐私说明。
+- 页面日期开关只影响搜索结果、收藏列表与大纲中的日期显示，不修改数据库；设置写入使用 `NonCancellable`。
 - 书架：`LazyVerticalGrid` 自适应列数，可滚动；封面 + 名称 + 页数，长名称最多两行省略。
 - 本地封面：`ui/components/NotebookCover.kt` 提供 4 套模板，按名称实时绘制，不产生图片文件、不联网、不覆盖原始照片。
 - 新建日记本：名称 + 预设封面 + Photo Picker 初始页面（最多 30 张）；导入失败会回滚文件并删除刚创建的日记本。
 - 日记本管理：重命名、更换封面、删除（二次确认）；删除按引用计数清理图片。
-- 日记本详情：默认单页阅读；顶部显示 Logo + 日记本名称 + 菜单（编辑 / 返回书架）；编辑模式复用立体 / 单页 / 大纲三视图。
+- 日记本详情：默认单页阅读；顶部显示 Logo + 日记本名称 + 菜单（编辑 / 返回书架）；阅读模式提供「立体 / 单页」切换，编辑模式提供「立体 / 单页 / 大纲」。
 - 单页阅读：左右滑动或前后箭头翻页，底部显示当前页码 / 总页数；双指 1x–4x 缩放，放大后单指拖动，放大时禁用翻页、切页自动复位。
+- 立体书：真实页面图片作为纸面内容；封面、书脊、纸张厚度、书底/书脊阴影与轻微 rotationX 透视；不改写原始照片。
+- 跨页规则：第 1 页位于右侧（左侧为封面），之后每两页一个跨页；最后一页单独显示时另一侧为封底；空白页正常显示，不遗漏、不重复。
+- 翻页动画：`rotationY` + `cameraDistance` 的 180° 轻量翻页（650ms 缓动）；支持左右滑动（拖动跟随、松手吸附/回退）与箭头翻页；纸背为纸张底色，尚未实现纸张弯曲或纸背映射下一张扫描图。
+- 点击立体书左/右页进入对应单页，单页以缩放 + 淡化聚焦进入，返回立体书时收缩退出；单页切回立体书时按页面 ID 恢复所在跨页；双指 0.8x–1.5x 缩放围绕中心，不改变跨页映射。
+- 阅读模式隐藏大纲与添加/删除/排序入口；编辑模式的立体书点击页面打开既有页面编辑对话框。
 - 阅读模式允许收藏 / 取消收藏当前页；删除、排序、描述、日期、替换图片仍只在编辑模式可用。
 - 阅读进度：`notebooks.lastReadPageId` 按页面 ID 保存；翻页只更新该字段，不改变 `updatedAt`；页面删除时清除失效进度，排序后按 ID 定位，找不到时回退第一页。
 - 阅读器的空白占位页使用简洁纸张样式；图片加载失败、超大图下采样、快速翻页与零页面均有兜底。
@@ -157,11 +176,11 @@ Gradle Wrapper 完整性基线（改动 wrapper 时必须同步更新）：
 
 未实现（按顺序推进，不要跳步）：
 
-1. 真实 3D 仿真翻页（阴影、纸张弯曲、手势）；当前立体视图只是双页占位。
-2. 搜索逻辑（当前只有占位入口）。
-3. 收藏与设置页面。
-4. 备份 / 导出 / 导入、DataStore 设置。
-5. 沉浸式阅读打磨与 Coil 大图加载（当前 `BitmapFactory` 下采样）。
+1. 真实纸张弯曲 / 高级 3D 变形（当前为轻量 rotationY 翻页，纸背未映射下一张扫描图）。
+2. 本地备份 / 导出 / 导入。
+3. 沉浸式阅读打磨与 Coil 大图加载（当前 `BitmapFactory` 下采样）。
+4. 搜索体验优化（相关度排序、最近搜索 / 全文索引）；当前为本地包含匹配。
+5. 云同步、OCR、在线 AI、广告 / 付费（明确不做）。
 
 明确不做：OCR、云同步、账号系统、在线 AI、广告、付费。
 
@@ -176,5 +195,8 @@ Gradle Wrapper 完整性基线（改动 wrapper 时必须同步更新）：
 - [ ] 启动图标仍由 `ic_launcher_foreground` / `ic_launcher_monochrome` 组成，顶栏 Logo 未在多个页面重复堆叠。
 - [ ] 页面编辑操作仅在编辑模式可达；页码由当前排序计算，日期 / 描述 / 收藏按页面 UUID 保存。
 - [ ] 阅读进度按页面 ID 保存，页面删除后不残留失效进度；缩放时翻页手势被禁用并正确复位。
+- [ ] 立体书跨页无遗漏 / 重复，点击页面与单页定位一致；双指缩放不改变跨页映射。
+- [ ] 搜索与收藏只读取本地 Room 数据，没有演示数据或网络请求；删除页面后收藏/搜索不再出现。
+- [ ] 主题与日期显示设置通过 DataStore 持久化；关闭日期只影响显示，数据库中的日期未被删除。
 - [ ] 删除页面 / 日记本前按引用计数判断图片，未误删共享文件；空白页未被当作已有图片。
 - [ ] 没有触碰第 2 节列出的禁止功能。

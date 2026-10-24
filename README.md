@@ -6,38 +6,46 @@ Leafora 是一个用于把**纸质日记电子化**的 Android 应用。你可�
 - 包名 / applicationId：`leafra.sitrmoo.com`（保持不变）
 - 仓库：`https://github.com/Sitrmoo/Leafra.git`
 
-本仓库当前处于**单页阅读阶段**：书架与日记本管理保持可用；进入日记本后默认单页阅读，支持滑动/前后页、双指缩放、阅读模式收藏与按日记本恢复进度；编辑模式继续复用大纲与页面管理。真实 3D 翻页、搜索与备份尚未实现。
+本仓库当前处于**搜索与设置阶段**：顶部可搜索日记本名称、页面描述与日期，收藏页与设置页可用；主题支持亮色 / 深色 / 跟随系统并持久化，页面日期显示可开关。立体书与单页阅读保持可用；高级纸张弯曲与备份尚未实现。
 
 ## 当前已实现
 
 - Kotlin + Jetpack Compose 原生 Android 项目骨架，应用显示名为 **Leafora**。
 - 品牌视觉：鼠尾草绿 + 奶油白纸张色系，官方叶片 Logo 已用于自适应启动图标、Android 13 单色主题图标与首页顶栏。
-- 固定顶栏：官方 Logo、搜索框占位（本阶段不实现搜索逻辑）、菜单（新建日记、收藏、设置、关于）。
+- 固定顶栏：官方 Logo 在左、可输入的搜索框居中、菜单在右（新建日记、收藏、设置、关于）。
+- 顶部搜索：按日记本名称、页面描述、页面日期匹配；结果横向排列缩略图、日记本名称、页码、日期与描述；点击打开对应日记本并定位页面。
+- 收藏列表：只收藏单页，与搜索结果共用布局；阅读模式与收藏列表均可收藏 / 取消收藏；页面删除后自动从列表消失。
+- 设置：亮色、深色、跟随系统三种主题；页面日期显示开关（只隐藏显示，不删除已保存日期）；设置通过 DataStore 持久化。
+- 关于页：展示应用名称 Leafora、当前版本与本地隐私说明。
 - 书架网格：封面 + 名称 + 页数，`LazyVerticalGrid` 自适应列数，数量增多可滚动；长名称最多两行省略。
 - 新建日记本：填写名称、选择预设封面风格，并通过系统 **Photo Picker** 多选初始页面（最多 30 张）。
 - 本地生成封面：按名称与预设模板（奶油白纸张、鼠尾草绿、植物装饰、标题排版）用 Compose 实时绘制，不联网、不写图片文件、不覆盖原始照片。
 - 日记本管理：重命名、更换封面、删除（二次确认）；删除时按引用计数清理图片。
 - 图片复制到应用私有目录 `files/diary-images/`，数据库只保存相对路径；重启应用后书架与页面仍存在。
-- 打开日记本：默认进入单页阅读；顶部菜单可切换到编辑模式，复用立体 / 单页 / 大纲三种视图。
+- 打开日记本：默认进入单页阅读；阅读模式提供「立体 / 单页」切换，编辑模式提供「立体 / 单页 / 大纲」。
 - 阅读界面：顶部显示官方 Logo、日记本名称与菜单（编辑 / 返回书架）；单页显示，支持左右滑动或前后箭头翻页，底部显示当前页码与总页数。
-- 双指 1x–4x 缩放，放大后单指拖动查看细节；放大期间禁用翻页，缩小或切换页面时自动复位。
+- 单页阅读支持双指 1x–4x 缩放，放大后单指拖动查看细节；放大期间禁用翻页，缩小或切换页面时自动复位。
+- 立体书：使用真实页面图片作为纸面内容，不重绘或修改原始照片；包含封面、书脊、纸张厚度、书底与书脊阴影，以及轻微透视。
+- 跨页规则：第 1 页位于右侧（左侧显示封面），之后每两页组成一个跨页；最后一页单独显示时另一侧为封底；空白占位页正常显示为空白纸张。
+- 立体书左右翻页使用 `rotationY` + `cameraDistance` 的 180° 轻量动画（650ms 缓动，拖动跟随手指，松手后吸附完成或回退）；纸背显示纸张底色，暂不映射下一张扫描图。
+- 支持左右滑动翻页与箭头翻页；点击立体书左页或右页进入对应单页，单页以缩放 + 淡化聚焦进入，返回立体书时收缩退出。
+- 从单页切回立体书时按页面 ID 定位所在跨页；双指 0.8x–1.5x 缩放围绕中心，不改变跨页内的页面位置关系。
 - 阅读模式仅允许收藏 / 取消收藏当前页；删除、排序、描述、日期、替换图片仍只在编辑模式可用。
 - 阅读进度按日记本保存：`notebooks.lastReadPageId` 记录页面 ID，重新打开时恢复到该页；页面被删除时清除进度，排序变化后仍能定位原页面。
 - 大纲视图：按顺序展示所有页面缩略图；拖动手柄或长按缩略图调整顺序，松手后持久化到数据库。
 - 页面编辑：追加多张图片、新建空白占位页、替换占位图片、删除页面、收藏、编辑描述、使用系统原生日期选择器设置或清除日期。
 - 页码按当前顺序从 1 连续编号；日期、描述、收藏跟随稳定页面 UUID，排序后不会错位。
 - 删除页面时按引用计数清理图片：只有不再被其它页面或封面引用时才删除文件。
-- 空白占位页在阅读器中使用简洁空白纸张样式；图片加载失败、超大图、快速连续翻页与零页面均有兜底。
-- 立体视图：双页静态占位布局（本阶段不做真实翻页动画）。
+- 图片加载失败、超大图下采样、快速连续翻页、零页面均有兜底。
 - GitHub Actions 云端构建 Debug APK，并上传构建产物。
 - 完整的 Gradle Wrapper（Gradle 8.9）。
 
 ## 当前尚未实现
 
-- 真实 3D 仿真翻页与翻页动画。
-- 搜索逻辑（仅保留占位入口，点击提示开发中）。
-- 收藏与设置页面（菜单项提示开发中）。
-- 全文搜索、本地备份、DataStore 设置存储、云同步、OCR、在线 AI、广告或付费功能。
+- 真实纸张弯曲 / 高级 3D 变形（当前为轻量 rotationY 翻页；纸背未映射下一张扫描图）。
+- 本地备份 / 导出 / 导入。
+- Coil 大图加载与沉浸式阅读打磨（当前使用 `BitmapFactory` 下采样）。
+- 云同步、OCR、在线 AI、广告或付费功能。
 - 正式签名与 Google Play 发布配置。
 
 
@@ -64,6 +72,7 @@ Leafora 是一个用于把**纸质日记电子化**的 Android 应用。你可�
 | androidx.room:room-runtime / room-ktx | 2.6.1 | 最低 compileSdk 34，与项目一致；2.7+ 要求 compileSdk 35 |
 | androidx.room:room-compiler（KSP） | 2.6.1 | 注解处理器，通过 KSP 生成代码 |
 | KSP | 2.0.21-1.0.28 | 必须与 Kotlin 2.0.21 严格对应 |
+| androidx.datastore:datastore-preferences | 1.1.1 | 本地设置持久化；不涉及网络 |
 
 版本兼容关系（升级时请整体考虑，不要只改其中一个）：
 
@@ -83,24 +92,33 @@ Leafora 是一个用于把**纸质日记电子化**的 Android 应用。你可�
 │  └─ src/main/
 │     ├─ AndroidManifest.xml            # 只有 MainActivity，无任何用户可见权限
 │     ├─ java/leafra/sitrmoo/com/
-│     │  ├─ LeafraApplication.kt        # 进程级数据库/仓库初始化与孤立文件清理
-│     │  ├─ MainActivity.kt             # 入口 Activity
+│     │  ├─ LeafraApplication.kt        # 数据库/仓库/设置初始化与孤立文件清理
+│     │  ├─ MainActivity.kt             # 导航、主题、系统栏、设置注入
 │     │  ├─ data/
-│     │  │  ├─ DiaryRepository.kt       # 唯一数据入口：事务、回滚、引用计数、重命名/封面
+│     │  │  ├─ DiaryRepository.kt       # 数据入口：事务、回滚、引用计数、搜索投影
 │     │  │  ├─ ImageStore.kt            # 私有目录图片复制/删除
+│     │  │  ├─ settings/                # DataStore 设置（主题、日期显示）
 │     │  │  ├─ local/                   # Room 实体、DAO、Database（含 1→2 迁移）
-│     │  │  └─ model/                   # Notebook / DiaryPage / CoverStyle / 结果类型
+│     │  │  └─ model/                   # Notebook / DiaryPage / PageResult 等
 │     │  └─ ui/
+│     │     ├─ about/AboutScreen.kt     # 关于页
 │     │     ├─ components/NotebookCover.kt  # 本地生成封面模板
 │     │     ├─ components/PageImage.kt      # 页面图片 / 空白页占位
 │     │     ├─ components/FavoriteStar.kt   # 收藏星标
-│     │     ├─ home/HomeScreen.kt       # 书架网格与管理对话框
-│     │     ├─ home/ShelfTopBar.kt      # 顶栏：Logo、搜索占位、菜单
+│     │     ├─ components/PageResultRow.kt  # 搜索/收藏共用横向条目
+│     │     ├─ components/SimpleTopBar.kt   # 二级页面顶栏
+│     │     ├─ favorites/FavoritesScreen.kt # 收藏列表
+│     │     ├─ home/HomeScreen.kt       # 书架、搜索、新建/管理对话框
+│     │     ├─ home/ShelfTopBar.kt      # 顶栏：Logo、搜索框、菜单
+│     │     ├─ home/SearchFilter.kt     # 名称/描述/日期匹配
 │     │     ├─ notebook/NotebookScreen.kt   # 阅读/编辑、三视图、页面弹窗
+│     │     ├─ notebook/BookSpreadView.kt   # 立体书跨页、透视与翻页动画
 │     │     ├─ notebook/OutlineView.kt      # 大纲缩略图与拖动排序
 │     │     ├─ notebook/ReaderPage.kt       # 单页图片缩放与翻页箭头
 │     │     ├─ notebook/PageEditDialog.kt   # 描述/日期/收藏/替换/删除
-│     │     └─ theme/                   # 鼠尾草绿 + 奶油白配色与字体
+│     │     ├─ settings/SettingsScreen.kt   # 主题与日期设置
+│     │     ├─ settings/SettingsLocals.kt   # 日期显示 CompositionLocal
+│     │     └─ theme/                   # 亮色/深色配色与字体
 │     └─ res/                           # 文案、主题、自适应图标与 Logo 矢量
 ├─ branding/                            # 官方 Logo 源文件（SVG）与品牌规范
 ├─ gradle/wrapper/                      # Gradle Wrapper（含官方 JAR）
@@ -292,6 +310,7 @@ Kotlin 2.0+ 必须应用 `org.jetbrains.kotlin.plugin.compose`，并且版本与
 - 当前版本不申请存储权限，通过系统 Photo Picker 读取你主动选择的图片。
 - 导入的图片复制到应用私有目录 `files/diary-images/`，数据库 `leafra.db` 只保存相对路径；卸载应用时随应用数据一起删除。
 - 应用没有网络权限，不上传任何图片或日记内容。
+- 搜索与收藏只读取本地 Room 数据；主题与日期显示设置保存在本地 DataStore，与日记数据分开。
 - 不包含账号系统、云端数据库、OCR 或在线 AI。
 - `.gitignore` 已排除签名文件、密钥、`local.properties`、构建产物，以及 `diary-images/` 等私人日记图片目录。请勿把私人日记图片或 API 密钥提交到 Git。
 
@@ -307,10 +326,14 @@ Kotlin 2.0+ 必须应用 `org.jetbrains.kotlin.plugin.compose`，并且版本与
 
 - `notebooks`：`id`（UUID）、`name`、`coverImagePath`（可选的真实照片封面，当前不写入）、`coverStyle`（本地封面模板，默认 0）、`createdAt`、`updatedAt`、`lastReadPageId`（阅读进度，页面 ID）。
 - `pages`：`id`（UUID）、`notebookId`（外键，级联删除）、`sortOrder`、`entryDate?`、`description?`、`imagePath?`、`isBlank`、`isFavorite`、`createdAt`。
+- 搜索/收藏列表使用 Repository 的 `PageResult` 投影（页面 + 日记本名称 + 动态页码），不新增数据库表，也不复制页面数据。
+- 设置保存在 DataStore（`leafra_settings`）中，不进入 Room 数据库：主题模式与页面日期显示开关与日记数据彼此独立。
 - 数据库版本为 2；版本 1 → 2 通过 `ALTER TABLE notebooks ADD COLUMN coverStyle` 迁移，不重建数据库、不清空已有数据。
 - 页码不落库，由 Repository 按当前顺序计算（从 1 开始连续）；页面以 `id` 寻址，不能把页码当主键。
+- 搜索匹配日记本名称、页面描述与页面日期（多位常见日期格式包含匹配），结果始终来自本地 Room 数据。
 - 拖动排序时把 `sortOrder` 重写为 1..n，页面 ID 不变；日期、描述、收藏按页面 ID 读写，因此重排不会错位。
 - 阅读进度按日记本保存 `lastReadPageId`（页面 ID，不是页码）：打开时按 ID 定位，页面已删除则清除并回退到第一页；翻页只更新该字段，不改变日记本的 `updatedAt`。
+- 立体书跨页由页面顺序实时计算，不落库：第 1 页在右侧（左侧封面），之后每两页一个跨页，最后一页单独时另一侧为封底；单页与立体书之间按页面 ID 互转。
 - 空白占位页表示为 `isBlank = true` 且 `imagePath = null`；替换图片后写入私有目录相对路径并置 `isBlank = false`，与“图片缺失”有明确的界面区分。
 - 封面由 Compose 按名称与模板实时绘制，不生成图片文件；删除日记本只删除数据库记录与仍被引用的原始照片。
 - 导入是“先复制文件，再单事务写入”；任一步失败都会删除本次文件并回滚事务。
@@ -318,8 +341,7 @@ Kotlin 2.0+ 必须应用 `org.jetbrains.kotlin.plugin.compose`，并且版本与
 
 ## 下一步开发建议
 
-1. 真实立体翻页：在双页占位基础上实现翻页阴影、纸张弯曲与手势；单页阅读与阅读进度已作为稳定基线。
-2. 搜索逻辑（名称 / 日期），复用顶栏占位入口。
-3. 收藏与设置页面。
-4. 备份 / 导出 / 导入与 DataStore 设置。
-5. 阅读页 Coil 大图加载与沉浸式阅读打磨（当前为 BitmapFactory 下采样）。
+1. 高级 3D 纸张变形：在现有 rotationY 翻页、透视与阴影基础上改进纸背映射、纸张弯曲和手势；仍坚持 Compose 轻量方案，不引入游戏引擎。
+2. 本地备份 / 导出 / 导入（本阶段未实现）。
+3. Coil 大图加载与沉浸式阅读打磨（当前为 `BitmapFactory` 下采样）。
+4. 搜索体验优化：结果按相关度排序、最近搜索或全文索引（当前为本地包含匹配）。

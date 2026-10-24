@@ -52,6 +52,7 @@ import leafra.sitrmoo.com.data.DiaryRepository
 import leafra.sitrmoo.com.data.model.DiaryPage
 import leafra.sitrmoo.com.ui.components.FavoriteStar
 import leafra.sitrmoo.com.ui.components.PageImage
+import leafra.sitrmoo.com.ui.settings.LocalShowPageDates
 
 private val PAGE_ROW_HEIGHT = 96.dp
 private val PAGE_ROW_SPACING = 8.dp
@@ -240,6 +241,8 @@ private fun OutlineRow(
     dragHandleModifier: Modifier,
     thumbnailDragModifier: Modifier,
 ) {
+    val showPageDates = LocalShowPageDates.current
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -309,9 +312,9 @@ private fun OutlineRow(
                 }
 
                 val entryDate = page.entryDate
-                if (entryDate != null || page.isFavorite) {
+                if ((showPageDates && entryDate != null) || page.isFavorite) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (entryDate != null) {
+                        if (showPageDates && entryDate != null) {
                             Text(
                                 text = formatEntryDate(entryDate),
                                 style = MaterialTheme.typography.bodySmall,
@@ -319,7 +322,7 @@ private fun OutlineRow(
                             )
                         }
                         if (page.isFavorite) {
-                            if (entryDate != null) {
+                            if (showPageDates && entryDate != null) {
                                 Spacer(modifier = Modifier.width(8.dp))
                             }
                             Text(

@@ -7,6 +7,10 @@
     <string name="shelf_subtitle">把纸页收进一本电子书，随时慢慢翻阅。</string>
     <string name="shelf_count">%1$d 本</string>
     <string name="search_placeholder">搜索日记</string>
+    <string name="search_results_title">搜索结果（%1$d）</string>
+    <string name="search_no_results">没有找到匹配的日记</string>
+    <string name="search_no_results_hint">可以搜索日记本名称、页面描述或日期。</string>
+    <string name="search_clear">清除搜索</string>
     <string name="menu_new_diary">新建日记</string>
     <string name="menu_favorites">收藏</string>
     <string name="menu_settings">设置</string>
@@ -68,11 +72,29 @@
     <string name="about_title">关于 Leafora</string>
     <string name="about_version">版本 %1$s</string>
     <string name="about_body">Leafora 把纸质日记的扫描图片整理成一本可翻阅的电子书。\n所有数据只保存在本机，不需要账号、网络或 API Key。</string>
+    <string name="about_privacy_title">本地数据与隐私</string>
+    <string name="about_privacy_body">所有日记、扫描图片和设置都只保存在这台设备的应用私有目录中。Leafora 不申请网络权限，不会上传任何内容，也不包含账号、云同步、OCR 或在线 AI。</string>
+
+    <!-- 收藏 -->
+    <string name="favorites_title">收藏</string>
+    <string name="favorites_empty_title">还没有收藏页面</string>
+    <string name="favorites_empty_body">阅读时点击页面下方的星标即可收藏当前页。</string>
+
+    <!-- 设置 -->
+    <string name="settings_title">设置</string>
+    <string name="settings_appearance">外观</string>
+    <string name="settings_display">显示</string>
+    <string name="theme_light">浅色（鼠尾草绿 + 奶油白）</string>
+    <string name="theme_dark">深色</string>
+    <string name="theme_system">跟随系统</string>
+    <string name="show_page_dates">显示页面日期</string>
+    <string name="show_page_dates_hint">只隐藏列表和大纲中的日期，不会删除已经保存的日期。</string>
 
     <!-- 日记本编辑 -->
     <string name="editor_edit">编辑</string>
     <string name="editor_done">完成</string>
     <string name="reader_back_to_shelf">返回书架</string>
+    <string name="book_back_cover">封底</string>
     <string name="view_stack">立体</string>
     <string name="view_single">单页</string>
     <string name="view_outline">大纲</string>

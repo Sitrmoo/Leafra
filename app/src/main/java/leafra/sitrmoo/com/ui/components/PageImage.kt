@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -119,13 +120,13 @@ private fun BlankPagePlaceholder(
         Box(
             modifier = modifier
                 .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.surface),
+                .background(Color(0xFFF8F4E8)),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = stringResource(R.string.blank_page),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = Color(0xFF7A7060),
                 textAlign = TextAlign.Center,
             )
         }

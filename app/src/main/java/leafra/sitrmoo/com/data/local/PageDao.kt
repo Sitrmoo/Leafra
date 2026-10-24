@@ -13,6 +13,16 @@ interface PageDao {
     @Query("SELECT * FROM pages WHERE notebookId = :notebookId ORDER BY sortOrder ASC, createdAt ASC")
     fun observePages(notebookId: String): Flow<List<PageEntity>>
 
+    /** 搜索与收藏使用的全量页面投影；页码由 Repository 按日记本分别计算。 */
+    @Query(
+        """
+        SELECT pages.*, notebooks.name AS notebookName
+        FROM pages INNER JOIN notebooks ON notebooks.id = pages.notebookId
+        ORDER BY pages.notebookId ASC, pages.sortOrder ASC, pages.createdAt ASC
+        """
+    )
+    fun observePagesWithNotebook(): Flow<List<PageWithNotebook>>
+
     @Query("SELECT * FROM pages WHERE notebookId = :notebookId ORDER BY sortOrder ASC, createdAt ASC")
     suspend fun getPages(notebookId: String): List<PageEntity>
 

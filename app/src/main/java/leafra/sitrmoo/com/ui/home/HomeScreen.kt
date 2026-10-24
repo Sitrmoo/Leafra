@@ -25,6 +25,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,6 +58,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -65,10 +68,10 @@ import leafra.sitrmoo.com.data.model.CreateNotebookFailure
 import leafra.sitrmoo.com.data.model.CreateNotebookResult
 import leafra.sitrmoo.com.data.model.CoverStyle
 import leafra.sitrmoo.com.data.model.Notebook
+import leafra.sitrmoo.com.data.model.PageResult
 import leafra.sitrmoo.com.ui.components.NotebookCover
+import leafra.sitrmoo.com.ui.components.PageResultRow
 import leafra.sitrmoo.com.ui.components.coverStyleLabelRes
-import leafra.sitrmoo.com.ui.theme.PaperBackground
-import leafra.sitrmoo.com.ui.theme.PaperCream
 
 /** Photo Picker 单次最多选择的初始页面数量。 */
 private const val MAX_INITIAL_IMAGES = 30
@@ -79,13 +82,27 @@ private const val MAX_NOTEBOOK_NAME_LENGTH = 40
 @Composable
 fun HomeScreen(
     repository: DiaryRepository,
-    onOpenNotebook: (String) -> Unit,
+    onOpenNotebook: (notebookId: String, pageId: String?) -> Unit,
+    onOpenFavorites: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenAbout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val notebooks by repository.notebooks.collectAsState(initial = emptyList())
+    val pageResults by repository.pageResults.collectAsState(initial = emptyList())
+
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val searchResults = remember(searchQuery, pageResults) {
+        val query = searchQuery.trim()
+        if (query.isEmpty()) {
+            emptyList()
+        } else {
+            pageResults.filter { result -> result.matchesSearchQuery(query) }
+        }
+    }
 
     var showCreateDialog by remember { mutableStateOf(false) }
     var newName by rememberSaveable { mutableStateOf("") }
@@ -97,7 +114,6 @@ fun HomeScreen(
     var renameTarget by remember { mutableStateOf<Notebook?>(null) }
     var coverTarget by remember { mutableStateOf<Notebook?>(null) }
     var deleteTarget by remember { mutableStateOf<Notebook?>(null) }
-    var showAbout by remember { mutableStateOf(false) }
 
     fun showMessage(message: String) {
         scope.launch { snackbarHostState.showSnackbar(message) }
@@ -116,17 +132,12 @@ fun HomeScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             ShelfTopBar(
-                onSearchClick = {
-                    showMessage(context.getString(R.string.search_in_development))
-                },
+                searchQuery = searchQuery,
+                onSearchQueryChange = { searchQuery = it.take(60) },
                 onNewDiary = { showCreateDialog = true },
-                onFavorites = {
-                    showMessage(context.getString(R.string.favorites_in_development))
-                },
-                onSettings = {
-                    showMessage(context.getString(R.string.settings_in_development))
-                },
-                onAbout = { showAbout = true },
+                onFavorites = onOpenFavorites,
+                onSettings = onOpenSettings,
+                onAbout = onOpenAbout,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -134,15 +145,34 @@ fun HomeScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Brush.verticalGradient(listOf(PaperBackground, PaperCream)))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.background,
+                            MaterialTheme.colorScheme.surface,
+                        ),
+                    ),
+                )
                 .padding(innerPadding),
         ) {
-            if (notebooks.isEmpty()) {
-                EmptyShelf(onCreate = { showCreateDialog = true })
-            } else {
-                NotebookShelf(
+            when {
+                searchQuery.isNotBlank() -> SearchResults(
+                    results = searchResults,
+                    repository = repository,
+                    onOpenResult = { result ->
+                        if (pageResults.any { it.pageId == result.pageId }) {
+                            onOpenNotebook(result.notebookId, result.pageId)
+                        } else {
+                            showMessage(context.getString(R.string.page_action_failed))
+                        }
+                    },
+                )
+
+                notebooks.isEmpty() -> EmptyShelf(onCreate = { showCreateDialog = true })
+
+                else -> NotebookShelf(
                     notebooks = notebooks,
-                    onOpenNotebook = onOpenNotebook,
+                    onOpenNotebook = { notebookId -> onOpenNotebook(notebookId, null) },
                     onManageNotebook = { actionsTarget = it },
                 )
             }
@@ -303,9 +333,60 @@ fun HomeScreen(
             },
         )
     }
+}
 
-    if (showAbout) {
-        AboutDialog(onDismiss = { showAbout = false })
+@Composable
+private fun SearchResults(
+    results: List<PageResult>,
+    repository: DiaryRepository,
+    onOpenResult: (PageResult) -> Unit,
+) {
+    if (results.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = stringResource(R.string.search_no_results),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.search_no_results_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            item(key = "header") {
+                Text(
+                    text = stringResource(R.string.search_results_title, results.size),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 4.dp),
+                )
+            }
+            items(items = results, key = { it.pageId }) { result ->
+                PageResultRow(
+                    result = result,
+                    repository = repository,
+                    onClick = { onOpenResult(result) },
+                )
+            }
+        }
     }
 }
 

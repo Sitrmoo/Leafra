@@ -66,3 +66,9 @@ data class NotebookSummary(
     @Embedded val notebook: NotebookEntity,
     val pageCount: Int,
 )
+
+/** 搜索 / 收藏投影：页面实体 + 所属日记本名称。 */
+data class PageWithNotebook(
+    @Embedded val page: PageEntity,
+    val notebookName: String,
+)
