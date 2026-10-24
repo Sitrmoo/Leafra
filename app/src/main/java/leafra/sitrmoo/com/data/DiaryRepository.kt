@@ -203,6 +203,138 @@ class DiaryRepository(
             }
         }
 
+    /** 追加一个空白占位页：稳定 UUID、无图片路径、isBlank = true。 */
+    suspend fun addBlankPage(notebookId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            database.withTransaction {
+                requireNotNull(notebookDao.findById(notebookId)) { "日记本不存在" }
+                val now = System.currentTimeMillis()
+                pageDao.insertAll(
+                    listOf(
+                        PageEntity(
+                            id = UUID.randomUUID().toString(),
+                            notebookId = notebookId,
+                            sortOrder = pageDao.maxSortOrder(notebookId) + 1,
+                            entryDate = null,
+                            description = null,
+                            imagePath = null,
+                            isBlank = true,
+                            isFavorite = false,
+                            createdAt = now,
+                        ),
+                    ),
+                )
+                notebookDao.touch(notebookId, now)
+            }
+        }
+    }
+
+    /**
+     * 用图片替换空白占位页：先复制文件，再写数据库。
+     * 写库失败会删除本次复制的文件，空白页保持原样。
+     */
+    suspend fun replacePlaceholderImage(
+        notebookId: String,
+        pageId: String,
+        uri: Uri,
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        fileMutex.withLock {
+            runCatching {
+                val page = pageDao.findById(pageId) ?: error("页面不存在")
+                require(page.notebookId == notebookId) { "页面不属于该日记本" }
+                require(page.isBlank && page.imagePath == null) { "只有空白页可以替换图片" }
+
+                val copiedPath = imageStore.copyFromUri(uri)
+                try {
+                    database.withTransaction {
+                        pageDao.updateImage(pageId, copiedPath, isBlank = false)
+                        notebookDao.touch(notebookId, System.currentTimeMillis())
+                    }
+                } catch (t: Throwable) {
+                    imageStore.delete(copiedPath)
+                    throw t
+                }
+            }
+        }
+    }
+
+    /** 保存页面的描述、日期与收藏状态；按页面 ID 更新，与当前排序无关。 */
+    suspend fun updatePageMeta(
+        pageId: String,
+        description: String?,
+        entryDate: Long?,
+        isFavorite: Boolean,
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val page = pageDao.findById(pageId) ?: error("页面不存在")
+            val trimmedDescription = description?.trim()?.takeIf { it.isNotEmpty() }
+            database.withTransaction {
+                pageDao.updateMeta(pageId, trimmedDescription, entryDate, isFavorite)
+                notebookDao.touch(page.notebookId, System.currentTimeMillis())
+            }
+        }
+    }
+
+    /** 只切换收藏状态，供大纲行与阅读页的收藏按钮使用。 */
+    suspend fun setPageFavorite(pageId: String, isFavorite: Boolean): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val page = pageDao.findById(pageId) ?: error("页面不存在")
+                database.withTransaction {
+                    pageDao.updateFavorite(pageId, isFavorite)
+                    notebookDao.touch(page.notebookId, System.currentTimeMillis())
+                }
+            }
+        }
+
+    /**
+     * 按传入顺序重排页面：sortOrder 重写为 1..n，页面 ID 与页面属性都不变。
+     * 传入 ID 必须与当前页面集合完全一致，避免覆盖并发的添加/删除。
+     */
+    suspend fun reorderPages(
+        notebookId: String,
+        orderedPageIds: List<String>,
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            database.withTransaction {
+                val existing = pageDao.getPages(notebookId)
+                require(existing.size == orderedPageIds.size) { "页面列表已变化，请重试" }
+                require(existing.map { it.id }.toSet() == orderedPageIds.toSet()) {
+                    "页面列表已变化，请重试"
+                }
+                orderedPageIds.forEachIndexed { index, pageId ->
+                    pageDao.updateSortOrder(pageId, index + 1L)
+                }
+                notebookDao.touch(notebookId, System.currentTimeMillis())
+            }
+        }
+    }
+
+    /** 删除页面；仅当图片没有被其它页面或封面引用时才删除文件。 */
+    suspend fun deletePage(notebookId: String, pageId: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            fileMutex.withLock {
+                runCatching {
+                    val page = pageDao.findById(pageId) ?: return@runCatching
+                    require(page.notebookId == notebookId) { "页面不属于该日记本" }
+                    val imagePath = page.imagePath
+
+                    database.withTransaction {
+                        pageDao.deleteById(pageId)
+                        notebookDao.touch(notebookId, System.currentTimeMillis())
+                    }
+
+                    if (imagePath != null) {
+                        val remaining = pageDao.countByImagePath(imagePath) +
+                            notebookDao.countCoverReferences(imagePath)
+                        if (remaining == 0) {
+                            imageStore.delete(imagePath)
+                        }
+                    }
+                }
+            }
+        }
+
     /**
      * 删除日记本及其页面。
      *

@@ -8,7 +8,7 @@
 
 - 应用名（显示名）：`Leafora`（`app/src/main/res/values/strings.xml` 中的 `app_name`）
 - 包名 / applicationId / namespace：`leafra.sitrmoo.com`（不要因为改名而修改）
-- 当前阶段：**阶段 2.5 已完成（品牌视觉整合）**。书架、封面生成、日记本管理保持可用；官方 Logo 已接入启动图标与顶栏，主题统一为鼠尾草绿 + 奶油白。下一阶段为单页阅读器。
+- 当前阶段：**阶段 3 已完成（页面编辑与大纲）**。书架、封面、品牌保持可用；日记本内可切换立体 / 单页 / 大纲，支持拖动排序、追加图片、空白页、替换、删除、收藏、描述与日期。下一阶段为真实立体翻页。
 - 项目目录：`C:\Website\leafra`（Git 远程 `https://github.com/Sitrmoo/Leafra.git`，分支 `main`）
 
 ## 2. 硬性约束（不要做）
@@ -23,6 +23,7 @@
 8. 所有源文件、资源、注释使用 **UTF-8**，界面文案与注释使用中文。
 9. **封面只能本地生成**（Compose 模板），禁止调用在线 AI、网络接口或 API Key；封面不得覆盖或改写任何原始日记照片。
 10. **品牌资源以 `branding/leafora_icon.svg` 为准。** 不要自行绘制替代 Logo；更新图标时同步维护 `drawable/ic_launcher_foreground.xml`、`ic_launcher_monochrome.xml`、`ic_brand_mark.xml` 与 `branding/README.md`，并保持色板同步。
+11. **页面 ID 必须稳定且不复用。** 页码只能按当前排序动态计算（从 1 连续），禁止把页码当主键或写入数据库；空白占位页必须用 `isBlank = true` + `imagePath = null` 表示，不能伪装成已有图片。
 
 ## 3. 版本矩阵（必须保持兼容）
 
@@ -67,9 +68,14 @@ Gradle Wrapper 完整性基线（改动 wrapper 时必须同步更新）：
 │     │  │  ├─ local/              # Entities.kt、NotebookDao.kt、PageDao.kt、LeafraDatabase.kt
 │     │  │  └─ model/              # Models.kt（Notebook / DiaryPage / CoverStyle / 结果类型）
 │     │  └─ ui/
-│     │     ├─ components/NotebookCover.kt  # 本地封面模板（配色、植物装饰、标题排版）
+│     │     ├─ components/NotebookCover.kt  # 本地封面模板
+│     │     ├─ components/PageImage.kt      # 页面图片与空白页占位
+│     │     ├─ components/FavoriteStar.kt   # 收藏星标
 │     │     ├─ home/HomeScreen.kt           # 书架网格、新建/重命名/换封面/删除
 │     │     ├─ home/ShelfTopBar.kt          # 固定顶栏：官方 Logo、搜索占位、菜单
+│     │     ├─ notebook/NotebookScreen.kt   # 阅读/编辑、三视图、页面操作
+│     │     ├─ notebook/OutlineView.kt      # 大纲与拖动排序
+│     │     ├─ notebook/PageEditDialog.kt   # 描述/日期/收藏/替换/删除
 │     │     └─ theme/              # Color.kt / Theme.kt / Type.kt（鼠尾草绿 + 奶油白）
 │     └─ res/                      # strings、themes、自适应图标、ic_brand_mark 等
 ├─ branding/                       # leafora_icon.svg 官方 Logo 与品牌规范
@@ -121,7 +127,7 @@ Gradle Wrapper 完整性基线（改动 wrapper 时必须同步更新）：
 - 保留 `chmod +x ./gradlew`（Windows 下提交的 `gradlew` 可能没有可执行位）。
 - Artifact 路径必须与 Gradle 实际输出一致。
 
-## 7. 进度基线（2026-10-24 书架阶段核对）
+## 7. 进度基线（2026-10-24 阶段 3 核对）
 
 已完成：
 
@@ -131,21 +137,25 @@ Gradle Wrapper 完整性基线（改动 wrapper 时必须同步更新）：
 - 主题：Material 3 色板统一为鼠尾草绿 + 奶油白（含 `surfaceContainer` 等角色），状态栏 / 导航栏固定深色图标。
 - 固定顶栏：官方 Logo（`ic_brand_mark`）、搜索框占位、菜单（新建日记 / 收藏 / 设置 / 关于）；未实现项给出明确的“开发中”提示。
 - 书架：`LazyVerticalGrid` 自适应列数，可滚动；封面 + 名称 + 页数，长名称最多两行省略。
-- 本地封面：`ui/components/NotebookCover.kt` 提供 4 套模板（奶油白·鼠尾草 / 米杏·橄榄 / 雾蓝·灰绿 / 暖棕·干花），按名称实时绘制，不产生图片文件、不联网、不覆盖原始照片。
+- 本地封面：`ui/components/NotebookCover.kt` 提供 4 套模板，按名称实时绘制，不产生图片文件、不联网、不覆盖原始照片。
 - 新建日记本：名称 + 预设封面 + Photo Picker 初始页面（最多 30 张）；导入失败会回滚文件并删除刚创建的日记本。
 - 日记本管理：重命名、更换封面、删除（二次确认）；删除按引用计数清理图片。
+- 日记本详情：默认单页阅读；「编辑」进入编辑模式，提供立体 / 单页 / 大纲三种视图；立体为双页静态占位。
+- 大纲：缩略图按顺序展示；拖动手柄或长按缩略图调整顺序，松手后把 `sortOrder` 重写为 1..n 并持久化（使用 `NonCancellable` 避免返回时丢失）。
+- 页面操作：追加多张图片、新建空白占位页（稳定 UUID）、替换占位图片、删除、收藏、编辑描述、系统原生日期选择器设置/清除日期。
+- 页码按当前顺序从 1 连续计算；日期、描述、收藏按页面 ID 读写，重排不会错位；删除页面按引用计数清理图片。
+- 页面修改入口全部受编辑模式限制；阅读模式仅浏览。
 - Room 版本 2：`notebooks.coverStyle`（默认 0），提供 1→2 显式 Migration，不重建数据库。
 - 无存储/网络权限；Manifest 仅 `MainActivity` 一个导出组件。
 - 本地 `:app:assembleDebug` 构建通过，产出 debug APK。
 
 未实现（按顺序推进，不要跳步）：
 
-1. 普通单页阅读模式，并接入 `setLastReadPage`。
-2. 搜索逻辑（当前只有占位入口）。
-3. 收藏与设置页面。
-4. DataStore 阅读设置；Coil 图片加载。
-5. 备份 / 导出 / 导入（另行讨论）。
-6. 单页阅读稳定后再做仿真翻页。
+1. 真实 3D 仿真翻页（阴影、纸张弯曲、手势）；当前立体视图只是双页占位。
+2. 阅读进度接入 `setLastReadPage` 与沉浸式阅读打磨。
+3. 搜索逻辑（当前只有占位入口）。
+4. 收藏与设置页面。
+5. 备份 / 导出 / 导入、DataStore 设置、Coil 大图加载。
 
 明确不做：OCR、云同步、账号系统、在线 AI、广告、付费。
 
@@ -158,4 +168,6 @@ Gradle Wrapper 完整性基线（改动 wrapper 时必须同步更新）：
 - [ ] 没有把 `local.properties`、密钥、`*.apk`、`build/` 加入 Git。
 - [ ] 封面仍由本地模板生成，没有新增网络 / API Key，也没有写入或覆盖图片文件。
 - [ ] 启动图标仍由 `ic_launcher_foreground` / `ic_launcher_monochrome` 组成，顶栏 Logo 未在多个页面重复堆叠。
+- [ ] 页面编辑操作仅在编辑模式可达；页码由当前排序计算，日期 / 描述 / 收藏按页面 UUID 保存。
+- [ ] 删除页面 / 日记本前按引用计数判断图片，未误删共享文件；空白页未被当作已有图片。
 - [ ] 没有触碰第 2 节列出的禁止功能。

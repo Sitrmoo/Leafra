@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -25,6 +26,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -52,6 +54,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -75,6 +79,7 @@ private const val MAX_NOTEBOOK_NAME_LENGTH = 40
 @Composable
 fun HomeScreen(
     repository: DiaryRepository,
+    onOpenNotebook: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -137,7 +142,8 @@ fun HomeScreen(
             } else {
                 NotebookShelf(
                     notebooks = notebooks,
-                    onNotebookClick = { actionsTarget = it },
+                    onOpenNotebook = onOpenNotebook,
+                    onManageNotebook = { actionsTarget = it },
                 )
             }
         }
@@ -306,7 +312,8 @@ fun HomeScreen(
 @Composable
 private fun NotebookShelf(
     notebooks: List<Notebook>,
-    onNotebookClick: (Notebook) -> Unit,
+    onOpenNotebook: (String) -> Unit,
+    onManageNotebook: (Notebook) -> Unit,
 ) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 148.dp),
@@ -322,7 +329,8 @@ private fun NotebookShelf(
         items(items = notebooks, key = { notebook -> notebook.id }) { notebook ->
             NotebookCard(
                 notebook = notebook,
-                onClick = { onNotebookClick(notebook) },
+                onOpen = { onOpenNotebook(notebook.id) },
+                onManage = { onManageNotebook(notebook) },
             )
         }
     }
@@ -363,17 +371,45 @@ private fun ShelfHeader(notebookCount: Int) {
 @Composable
 private fun NotebookCard(
     notebook: Notebook,
-    onClick: () -> Unit,
+    onOpen: () -> Unit,
+    onManage: () -> Unit,
 ) {
+    val manageLabel = stringResource(R.string.notebook_manage)
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(onClick = onOpen),
     ) {
-        NotebookCover(
-            notebook = notebook,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        Box(modifier = Modifier.fillMaxWidth()) {
+            NotebookCover(
+                notebook = notebook,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Surface(
+                onClick = onManage,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp)
+                    .size(30.dp)
+                    .semantics { contentDescription = manageLabel },
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                shadowElevation = 2.dp,
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "⋯",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(10.dp))
 

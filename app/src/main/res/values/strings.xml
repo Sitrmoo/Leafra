@@ -68,4 +68,62 @@
     <string name="about_title">关于 Leafora</string>
     <string name="about_version">版本 %1$s</string>
     <string name="about_body">Leafora 把纸质日记的扫描图片整理成一本可翻阅的电子书。\n所有数据只保存在本机，不需要账号、网络或 API Key。</string>
+
+    <!-- 日记本编辑 -->
+    <string name="editor_edit">编辑</string>
+    <string name="editor_done">完成</string>
+    <string name="view_stack">立体</string>
+    <string name="view_single">单页</string>
+    <string name="view_outline">大纲</string>
+    <string name="page_number">第 %1$d 页</string>
+    <string name="page_indicator">第 %1$d / %2$d 页</string>
+    <string name="page_spread_label">第 %1$d–%2$d 页</string>
+    <string name="previous_spread">上一页</string>
+    <string name="next_spread">下一页</string>
+    <string name="page_edit_action">页面信息</string>
+
+    <!-- 大纲与添加页面 -->
+    <string name="outline_add_title">添加页面</string>
+    <string name="outline_add_hint">可以一次追加多张扫描图片，也可以先插入空白占位页。</string>
+    <string name="outline_add_images">追加图片</string>
+    <string name="outline_add_blank">新建空白页</string>
+    <string name="outline_read_hint">进入编辑模式后可拖动排序、编辑页面或添加内容。</string>
+    <string name="outline_drag_hint">拖动左侧手柄，或长按缩略图，即可调整页面顺序。</string>
+    <string name="outline_empty_edit_hint">点击下方「追加图片」或「新建空白页」开始。</string>
+    <string name="outline_empty_read_hint">进入编辑模式后可以添加页面。</string>
+    <string name="empty_notebook_title">这个日记本还没有页面</string>
+    <string name="empty_notebook_read_hint">点击右上角「编辑」，在大纲中追加图片或创建空白页。</string>
+    <string name="empty_notebook_edit_hint">切换到「大纲」视图，追加图片或创建空白页。</string>
+
+    <!-- 页面编辑 -->
+    <string name="page_edit_title">第 %1$d 页</string>
+    <string name="page_description">描述</string>
+    <string name="page_description_hint">记录这一页的内容或备注（可选）</string>
+    <string name="page_date">日期</string>
+    <string name="page_date_unset">未设置</string>
+    <string name="page_pick_date">选择日期</string>
+    <string name="page_clear_date">清除日期</string>
+    <string name="page_favorite">收藏此页</string>
+    <string name="page_unfavorite">取消收藏</string>
+    <string name="page_favorited">已收藏</string>
+    <string name="page_delete">删除页面</string>
+    <string name="page_delete_confirm_title">删除页面</string>
+    <string name="page_delete_confirm_message">确定删除第 %1$d 页吗？此操作无法撤销。</string>
+    <string name="blank_page">空白页</string>
+    <string name="blank_page_hint">这是空白占位页，可以替换为一张扫描图片。</string>
+    <string name="page_replace_image">选择图片替换</string>
+    <string name="image_unavailable">图片无法显示</string>
+    <string name="notebook_manage">管理日记本</string>
+
+    <!-- 操作反馈 -->
+    <string name="page_action_failed">操作失败，请重试。</string>
+    <string name="page_deleted">页面已删除</string>
+    <string name="append_success">已追加 %1$d 张图片</string>
+    <string name="append_failed">追加失败，本次图片已回滚。</string>
+    <string name="append_empty">未选择图片，未做任何修改。</string>
+    <string name="replace_success">图片已替换</string>
+    <string name="replace_failed">替换失败，请重试。</string>
+    <string name="blank_page_created">已创建空白页</string>
+    <string name="blank_page_failed">创建空白页失败，请重试。</string>
+    <string name="reorder_failed">排序保存失败，请重试。</string>
 </resources>

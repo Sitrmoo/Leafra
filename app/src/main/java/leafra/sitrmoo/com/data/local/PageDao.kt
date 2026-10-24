@@ -16,11 +16,37 @@ interface PageDao {
     @Query("SELECT * FROM pages WHERE notebookId = :notebookId ORDER BY sortOrder ASC, createdAt ASC")
     suspend fun getPages(notebookId: String): List<PageEntity>
 
+    @Query("SELECT * FROM pages WHERE id = :pageId")
+    suspend fun findById(pageId: String): PageEntity?
+
     @Query("SELECT COALESCE(MAX(sortOrder), 0) FROM pages WHERE notebookId = :notebookId")
     suspend fun maxSortOrder(notebookId: String): Long
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertAll(pages: List<PageEntity>)
+
+    @Query("UPDATE pages SET sortOrder = :sortOrder WHERE id = :pageId")
+    suspend fun updateSortOrder(pageId: String, sortOrder: Long)
+
+    @Query("UPDATE pages SET imagePath = :imagePath, isBlank = :isBlank WHERE id = :pageId")
+    suspend fun updateImage(pageId: String, imagePath: String?, isBlank: Boolean)
+
+    @Query(
+        "UPDATE pages SET description = :description, entryDate = :entryDate, isFavorite = :isFavorite " +
+            "WHERE id = :pageId"
+    )
+    suspend fun updateMeta(
+        pageId: String,
+        description: String?,
+        entryDate: Long?,
+        isFavorite: Boolean,
+    )
+
+    @Query("UPDATE pages SET isFavorite = :isFavorite WHERE id = :pageId")
+    suspend fun updateFavorite(pageId: String, isFavorite: Boolean)
+
+    @Query("DELETE FROM pages WHERE id = :pageId")
+    suspend fun deleteById(pageId: String)
 
     @Query("SELECT imagePath FROM pages WHERE imagePath IS NOT NULL")
     suspend fun allImagePaths(): List<String>

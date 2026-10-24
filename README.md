@@ -6,7 +6,7 @@ Leafora 是一个用于把**纸质日记电子化**的 Android 应用。你可�
 - 包名 / applicationId：`leafra.sitrmoo.com`（保持不变）
 - 仓库：`https://github.com/Sitrmoo/Leafra.git`
 
-本仓库当前处于**品牌视觉整合完成的书架阶段**：已有可滚动书架、本地生成封面、日记本重命名/换封面/删除，以及带初始页面的新建流程；阅读器、搜索与备份尚未实现。
+本仓库当前处于**页面编辑与大纲阶段**：书架可管理日记本，进入日记本后可单页浏览，并在编辑模式中使用立体 / 单页 / 大纲视图、拖动排序、追加图片、空白页、收藏、描述与日期；真实 3D 翻页、搜索与备份尚未实现。
 
 ## 当前已实现
 
@@ -18,17 +18,21 @@ Leafora 是一个用于把**纸质日记电子化**的 Android 应用。你可�
 - 本地生成封面：按名称与预设模板（奶油白纸张、鼠尾草绿、植物装饰、标题排版）用 Compose 实时绘制，不联网、不写图片文件、不覆盖原始照片。
 - 日记本管理：重命名、更换封面、删除（二次确认）；删除时按引用计数清理图片。
 - 图片复制到应用私有目录 `files/diary-images/`，数据库只保存相对路径；重启应用后书架与页面仍存在。
-- 页码按页面排序动态计算（从 1 开始连续），页面主键使用 UUID。
+- 打开日记本：单页浏览；右上角「编辑」进入编辑模式，提供立体 / 单页 / 大纲三种视图切换。
+- 大纲视图：按顺序展示所有页面缩略图；拖动手柄或长按缩略图调整顺序，松手后持久化到数据库。
+- 页面编辑：追加多张图片、新建空白占位页、替换占位图片、删除页面、收藏、编辑描述、使用系统原生日期选择器设置或清除日期。
+- 页码按当前顺序从 1 连续编号；日期、描述、收藏跟随稳定页面 UUID，排序后不会错位。
+- 删除页面时按引用计数清理图片：只有不再被其它页面或封面引用时才删除文件。
+- 立体视图：双页静态占位布局（本阶段不做真实翻页动画）。
 - GitHub Actions 云端构建 Debug APK，并上传构建产物。
 - 完整的 Gradle Wrapper（Gradle 8.9）。
 
 ## 当前尚未实现
 
+- 真实 3D 仿真翻页与翻页动画。
 - 搜索逻辑（仅保留占位入口，点击提示开发中）。
 - 收藏与设置页面（菜单项提示开发中）。
-- 完整阅读器、单页阅读模式、仿真立体书翻页、3D 渲染。
-- 页面收藏 / 日期 / 描述的编辑界面（数据库字段已预留）。
-- 备份、DataStore 设置存储、云同步、OCR、在线 AI、广告或付费功能。
+- 全文搜索、本地备份、DataStore 设置存储、云同步、OCR、在线 AI、广告或付费功能。
 - 正式签名与 Google Play 发布配置。
 
 
@@ -83,8 +87,13 @@ Leafora 是一个用于把**纸质日记电子化**的 Android 应用。你可�
 │     │  │  └─ model/                   # Notebook / DiaryPage / CoverStyle / 结果类型
 │     │  └─ ui/
 │     │     ├─ components/NotebookCover.kt  # 本地生成封面模板
+│     │     ├─ components/PageImage.kt      # 页面图片 / 空白页占位
+│     │     ├─ components/FavoriteStar.kt   # 收藏星标
 │     │     ├─ home/HomeScreen.kt       # 书架网格与管理对话框
 │     │     ├─ home/ShelfTopBar.kt      # 顶栏：Logo、搜索占位、菜单
+│     │     ├─ notebook/NotebookScreen.kt   # 阅读/编辑、三视图、页面弹窗
+│     │     ├─ notebook/OutlineView.kt      # 大纲缩略图与拖动排序
+│     │     ├─ notebook/PageEditDialog.kt   # 描述/日期/收藏/替换/删除
 │     │     └─ theme/                   # 鼠尾草绿 + 奶油白配色与字体
 │     └─ res/                           # 文案、主题、自适应图标与 Logo 矢量
 ├─ branding/                            # 官方 Logo 源文件（SVG）与品牌规范
@@ -293,16 +302,17 @@ Kotlin 2.0+ 必须应用 `org.jetbrains.kotlin.plugin.compose`，并且版本与
 - `notebooks`：`id`（UUID）、`name`、`coverImagePath`（可选的真实照片封面，当前不写入）、`coverStyle`（本地封面模板，默认 0）、`createdAt`、`updatedAt`、`lastReadPageId`（预留阅读进度）。
 - `pages`：`id`（UUID）、`notebookId`（外键，级联删除）、`sortOrder`、`entryDate?`、`description?`、`imagePath?`、`isBlank`、`isFavorite`、`createdAt`。
 - 数据库版本为 2；版本 1 → 2 通过 `ALTER TABLE notebooks ADD COLUMN coverStyle` 迁移，不重建数据库、不清空已有数据。
-- 页码不落库，由 Repository 按 `sortOrder` 计算（从 1 开始连续）；页面以 `id` 寻址，不能把页码当主键。
+- 页码不落库，由 Repository 按当前顺序计算（从 1 开始连续）；页面以 `id` 寻址，不能把页码当主键。
+- 拖动排序时把 `sortOrder` 重写为 1..n，页面 ID 不变；日期、描述、收藏按页面 ID 读写，因此重排不会错位。
+- 空白占位页表示为 `isBlank = true` 且 `imagePath = null`；替换图片后写入私有目录相对路径并置 `isBlank = false`，与“图片缺失”有明确的界面区分。
 - 封面由 Compose 按名称与模板实时绘制，不生成图片文件；删除日记本只删除数据库记录与仍被引用的原始照片。
 - 导入是“先复制文件，再单事务写入”；任一步失败都会删除本次文件并回滚事务。
-- 删除日记本按引用计数清理图片；数据库未引用的孤立图片在应用启动时清理。
+- 删除页面 / 日记本时按引用计数清理图片；数据库未引用的孤立图片在应用启动时清理。
 
 ## 下一步开发建议
 
-1. 普通单页阅读模式：用 `pages(id)` 按排序展示，翻页时调用 `setLastReadPage`。
+1. 真实立体翻页：在双页占位基础上实现翻页阴影、纸张弯曲与手势；先稳定单页阅读与 `setLastReadPage` 进度。
 2. 搜索逻辑（名称 / 日期），复用顶栏占位入口。
 3. 收藏与设置页面。
-4. DataStore 保存阅读设置；Coil 加载阅读页大图。
-5. 备份 / 导出 / 导入（后续单独设计）。
-6. 单页阅读稳定后，再实现仿真翻页效果。
+4. 备份 / 导出 / 导入与 DataStore 设置。
+5. 阅读页 Coil 大图加载与沉浸式阅读打磨。

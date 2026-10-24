@@ -6,7 +6,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import leafra.sitrmoo.com.ui.home.HomeScreen
+import leafra.sitrmoo.com.ui.notebook.NotebookScreen
 import leafra.sitrmoo.com.ui.theme.LeafraTheme
 
 class MainActivity : ComponentActivity() {
@@ -25,7 +30,21 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             LeafraTheme {
-                HomeScreen(repository = repository)
+                var openedNotebookId by rememberSaveable { mutableStateOf<String?>(null) }
+                val openNotebookId = openedNotebookId
+
+                if (openNotebookId == null) {
+                    HomeScreen(
+                        repository = repository,
+                        onOpenNotebook = { openedNotebookId = it },
+                    )
+                } else {
+                    NotebookScreen(
+                        repository = repository,
+                        notebookId = openNotebookId,
+                        onBack = { openedNotebookId = null },
+                    )
+                }
             }
         }
     }
