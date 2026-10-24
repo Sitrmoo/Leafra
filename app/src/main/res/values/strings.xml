@@ -1,42 +1,71 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Leafra</string>
-    <string name="home_title">我的日记</string>
-    <string name="home_subtitle">把纸页收进一本电子书，随时慢慢翻阅。</string>
+    <string name="app_name">Leafora</string>
+
+    <!-- 书架 -->
+    <string name="shelf_title">我的书架</string>
+    <string name="shelf_subtitle">把纸页收进一本电子书，随时慢慢翻阅。</string>
+    <string name="shelf_count">%1$d 本</string>
+    <string name="search_placeholder">搜索日记</string>
+    <string name="menu_new_diary">新建日记</string>
+    <string name="menu_favorites">收藏</string>
+    <string name="menu_settings">设置</string>
+    <string name="menu_about">关于</string>
+    <string name="search_in_development">搜索功能正在开发中，本阶段暂不可用。</string>
+    <string name="favorites_in_development">收藏功能正在开发中，本阶段暂不可用。</string>
+    <string name="settings_in_development">设置功能正在开发中，本阶段暂不可用。</string>
+
+    <!-- 空书架 -->
     <string name="empty_shelf_label">空书架</string>
     <string name="empty_shelf_title">这里还没有日记本</string>
-    <string name="empty_shelf_body">先新建一个日记本，再从相册导入纸质日记的扫描图片。</string>
-    <string name="import_images">导入日记图片</string>
-    <string name="reading_mode">阅读模式</string>
-    <string name="reading_mode_placeholder">阅读模式正在开发中，下一版开放。</string>
-    <string name="photo_picker_hint">使用系统照片选择器，无需授予存储权限；图片会复制到应用私有目录。</string>
+    <string name="empty_shelf_body">新建一本日记，再从相册导入纸质日记的扫描图片。</string>
 
-    <string name="create_notebook">新建日记本</string>
+    <!-- 新建日记本 -->
+    <string name="create_notebook_title">新建日记本</string>
     <string name="notebook_name_label">日记本名称</string>
     <string name="notebook_name_placeholder">例如：2019 年的夏天</string>
-    <string name="action_create">创建</string>
-    <string name="action_cancel">取消</string>
-    <string name="action_delete">删除</string>
-    <string name="notebook_list_title">我的日记本（%1$d）</string>
-    <string name="notebook_page_count">%1$d 页</string>
-    <string name="page_strip_title">页面</string>
-    <string name="no_notebook_selected">请先选择一个日记本</string>
-    <string name="no_pages_yet">这个日记本还没有页面，导入几张扫描图试试。</string>
-    <string name="page_number">第 %1$d 页</string>
-    <string name="page_image_description">第 %1$d 页图片</string>
-    <string name="blank_page">空白页</string>
-    <string name="image_unavailable">无法显示</string>
+    <string name="untitled_notebook">未命名日记</string>
+    <string name="cover_style_label">封面风格</string>
+    <string name="select_initial_images">选择初始页面（可选）</string>
+    <string name="initial_images_selected">已选择 %1$d 张，点此重新选择</string>
+    <string name="initial_images_hint">图片会复制到应用私有目录，无需存储权限；创建后仍可继续导入。</string>
     <string name="notebook_created">已创建「%1$s」</string>
-    <string name="notebook_create_failed">创建日记本失败，请重试。</string>
-    <string name="delete_notebook">删除日记本</string>
+    <string name="notebook_created_with_pages">已创建「%1$s」并导入 %2$d 张图片</string>
+    <string name="create_failed_name">名称不能为空，且不能超过 40 个字。</string>
+    <string name="create_failed_copy">图片复制失败，日记本创建已回滚。</string>
+    <string name="create_failed_database">写入数据库失败，日记本创建已回滚。</string>
+    <string name="create_failed_generic">创建失败，请重试。</string>
+
+    <!-- 重命名与封面 -->
+    <string name="rename_notebook_title">重命名日记本</string>
+    <string name="notebook_renamed">已重命名为「%1$s」</string>
+    <string name="rename_failed">重命名失败，请重试。</string>
+    <string name="cover_style_title">选择封面风格</string>
+    <string name="cover_style_sage">奶油白·鼠尾草</string>
+    <string name="cover_style_olive">米杏·橄榄</string>
+    <string name="cover_style_mist">雾蓝·灰绿</string>
+    <string name="cover_style_clay">暖棕·干花</string>
+    <string name="cover_updated">封面已更换</string>
+    <string name="cover_update_failed">更换封面失败，请重试。</string>
+
+    <!-- 操作与删除 -->
+    <string name="notebook_actions_hint">选择要进行的操作</string>
+    <string name="action_rename">重命名</string>
+    <string name="action_change_cover">更换封面</string>
+    <string name="action_delete">删除</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_create">创建</string>
+    <string name="action_save">保存</string>
+    <string name="action_apply">应用</string>
+    <string name="action_close">关闭</string>
     <string name="delete_notebook_title">删除日记本</string>
     <string name="delete_notebook_message">确定删除「%1$s」及其 %2$d 页吗？图片文件会被清理，且无法恢复。</string>
     <string name="notebook_deleted">日记本已删除</string>
     <string name="notebook_delete_failed">删除失败，请重试。</string>
-    <string name="import_success">已导入 %1$d 张图片，从第 %2$d 页开始。</string>
-    <string name="import_empty">未选择图片，未做任何修改。</string>
-    <string name="import_failed_notebook">日记本不存在，导入已取消。</string>
-    <string name="import_failed_copy">图片复制失败，本次导入已回滚。</string>
-    <string name="import_failed_database">写入数据库失败，本次导入已回滚。</string>
-    <string name="import_failed_generic">导入失败，本次导入已回滚。</string>
+    <string name="notebook_page_count">%1$d 页</string>
+
+    <!-- 关于 -->
+    <string name="about_title">关于 Leafora</string>
+    <string name="about_version">版本 %1$s</string>
+    <string name="about_body">Leafora 把纸质日记的扫描图片整理成一本可翻阅的电子书。\n所有数据只保存在本机，不需要账号、网络或 API Key。</string>
 </resources>

@@ -4,11 +4,11 @@
 
 ## 1. 项目目标
 
-**Leafra**：把纸质日记的扫描照片整理成一本可翻阅的电子书。
+**Leafora**（显示名；包名与仓库仍沿用 Leafra）：把纸质日记的扫描照片整理成一本可翻阅的电子书。
 
-- 应用名：`Leafra`（`app/src/main/res/values/strings.xml` 中的 `app_name`）
-- 包名 / applicationId / namespace：`leafra.sitrmoo.com`
-- 当前阶段：**项目初始化阶段**。只有可运行的首页骨架 + 系统 Photo Picker 选图，选中的图片不落盘、不持久化。
+- 应用名（显示名）：`Leafora`（`app/src/main/res/values/strings.xml` 中的 `app_name`）
+- 包名 / applicationId / namespace：`leafra.sitrmoo.com`（不要因为改名而修改）
+- 当前阶段：**书架阶段**。首页为可滚动书架，封面由本地模板生成；新建日记本可通过 Photo Picker 导入初始页面。阅读器、搜索、备份尚未实现。
 - 项目目录：`C:\Website\leafra`（Git 远程 `https://github.com/Sitrmoo/Leafra.git`，分支 `main`）
 
 ## 2. 硬性约束（不要做）
@@ -21,6 +21,7 @@
 6. **不要提交**：`local.properties`、签名文件与密钥、`.env`、构建产物（`**/build/`、`.gradle/`、`*.apk`）、私人日记图片（`diary-images/`、`private-diaries/`）。
 7. **不要重写整个项目。** 出问题时先定位根因，做最小修改。
 8. 所有源文件、资源、注释使用 **UTF-8**，界面文案与注释使用中文。
+9. **封面只能本地生成**（Compose 模板），禁止调用在线 AI、网络接口或 API Key；封面不得覆盖或改写任何原始日记照片。
 
 ## 3. 版本矩阵（必须保持兼容）
 
@@ -60,12 +61,14 @@ Gradle Wrapper 完整性基线（改动 wrapper 时必须同步更新）：
 │     │  ├─ LeafraApplication.kt   # 数据库/仓库初始化、启动时清理孤立图片
 │     │  ├─ MainActivity.kt        # 入口，setContent { LeafraTheme { HomeScreen(repository) } }
 │     │  ├─ data/
-│     │  │  ├─ DiaryRepository.kt  # 唯一数据入口：导入事务、回滚、引用计数
+│     │  │  ├─ DiaryRepository.kt  # 唯一数据入口：导入事务、回滚、引用计数、重命名/封面
 │     │  │  ├─ ImageStore.kt       # 私有目录图片复制/删除/路径校验
 │     │  │  ├─ local/              # Entities.kt、NotebookDao.kt、PageDao.kt、LeafraDatabase.kt
-│     │  │  └─ model/              # Models.kt（Notebook / DiaryPage / ImportResult）
+│     │  │  └─ model/              # Models.kt（Notebook / DiaryPage / CoverStyle / 结果类型）
 │     │  └─ ui/
-│     │     ├─ home/HomeScreen.kt  # 首页：日记本列表、导入、缩略图
+│     │     ├─ components/NotebookCover.kt  # 本地封面模板（配色、植物装饰、标题排版）
+│     │     ├─ home/HomeScreen.kt           # 书架网格、新建/重命名/换封面/删除
+│     │     ├─ home/ShelfTopBar.kt          # 固定顶栏：Logo、搜索占位、菜单
 │     │     └─ theme/              # Color.kt / Theme.kt / Type.kt（纸张色系、衬线标题）
 │     └─ res/                      # strings.xml、themes.xml、colors.xml、自适应启动图标
 ├─ gradle/wrapper/
@@ -116,28 +119,29 @@ Gradle Wrapper 完整性基线（改动 wrapper 时必须同步更新）：
 - 保留 `chmod +x ./gradlew`（Windows 下提交的 `gradlew` 可能没有可执行位）。
 - Artifact 路径必须与 Gradle 实际输出一致。
 
-## 7. 进度基线（2026-10-24 数据层阶段核对）
+## 7. 进度基线（2026-10-24 书架阶段核对）
 
 已完成：
 
 - Gradle Wrapper 8.9 完整（jar + properties + 两个启动脚本），校验和与官方一致。
-- 首页 `HomeScreen`：中文文案、纸张风格主题、书架列表、页面缩略图、可滚动、最大宽度 560dp。
-- Room 2.6.1 + KSP：`notebooks` / `pages` 两张表，实体、DAO、Database 齐备。
-- 图片持久化：Photo Picker 选图后复制到 `files/diary-images/`，数据库只保存相对路径。
-- 导入事务：先复制文件，再单事务写库；失败时删除本次文件并回滚。
-- 删除日记本按引用计数清理图片；应用启动时清理数据库未引用的孤立图片。
-- 新建/删除日记本、页面缩略图展示；重启应用后日记本与图片仍可显示。
-- 阅读进度预留：`notebooks.lastReadPageId` + `DiaryRepository.setLastReadPage`。
+- 应用显示名统一为 `Leafora`（`strings.xml` 的 `app_name`），包名 / applicationId / namespace 未变。
+- 固定顶栏：Logo（Compose 绘制）、搜索框占位、菜单（新建日记 / 收藏 / 设置 / 关于）；未实现项给出明确的“开发中”提示。
+- 书架：`LazyVerticalGrid` 自适应列数，可滚动；封面 + 名称 + 页数，长名称最多两行省略。
+- 本地封面：`ui/components/NotebookCover.kt` 提供 4 套模板（奶油白·鼠尾草 / 米杏·橄榄 / 雾蓝·灰绿 / 暖棕·干花），按名称实时绘制，不产生图片文件、不联网、不覆盖原始照片。
+- 新建日记本：名称 + 预设封面 + Photo Picker 初始页面（最多 30 张）；导入失败会回滚文件并删除刚创建的日记本。
+- 日记本管理：重命名、更换封面、删除（二次确认）；删除按引用计数清理图片。
+- Room 版本 2：`notebooks.coverStyle`（默认 0），提供 1→2 显式 Migration，不重建数据库。
 - 无存储/网络权限；Manifest 仅 `MainActivity` 一个导出组件。
 - 本地 `:app:assembleDebug` 构建通过，产出 debug APK。
 
 未实现（按顺序推进，不要跳步）：
 
-1. DataStore 保存阅读设置。
-2. Coil 加载缩略图。
-3. 普通单页阅读模式，并接入 `setLastReadPage`。
-4. 页面收藏 / 日期 / 描述的编辑界面。
-5. 单页阅读稳定后再做仿真翻页。
+1. 普通单页阅读模式，并接入 `setLastReadPage`。
+2. 搜索逻辑（当前只有占位入口）。
+3. 收藏与设置页面。
+4. DataStore 阅读设置；Coil 图片加载。
+5. 备份 / 导出 / 导入（另行讨论）。
+6. 单页阅读稳定后再做仿真翻页。
 
 明确不做：OCR、云同步、账号系统、在线 AI、广告、付费。
 
@@ -148,4 +152,5 @@ Gradle Wrapper 完整性基线（改动 wrapper 时必须同步更新）：
 - [ ] 版本号没有被无意升级；Compose 依赖仍由 BOM 管理。
 - [ ] 新文案在 `strings.xml` 中，且文件为 UTF-8。
 - [ ] 没有把 `local.properties`、密钥、`*.apk`、`build/` 加入 Git。
+- [ ] 封面仍由本地模板生成，没有新增网络 / API Key，也没有写入或覆盖图片文件。
 - [ ] 没有触碰第 2 节列出的禁止功能。

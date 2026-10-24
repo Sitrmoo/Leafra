@@ -3,13 +3,14 @@ package leafra.sitrmoo.com.data.model
 /**
  * 日记本领域模型，不直接暴露 Room 实体。
  *
- * [coverImagePath] 是封面图片的相对路径引用；当前阶段取第一页的图片，
- * 暂不做封面合成。
+ * [coverImagePath] 是可选的真实照片封面引用（本阶段不写入，保留给后续功能）。
+ * [coverStyle] 决定本地生成封面的模板，封面由 Compose 按名称实时绘制，不产生图片文件。
  */
 data class Notebook(
     val id: String,
     val name: String,
     val coverImagePath: String?,
+    val coverStyle: Int,
     val pageCount: Int,
     val createdAt: Long,
     val updatedAt: Long,
@@ -40,6 +41,21 @@ data class DiaryPage(
     val createdAt: Long,
 )
 
+/** 本地生成封面的预设模板；id 持久化在 `notebooks.coverStyle` 中。 */
+enum class CoverStyle(val id: Int) {
+    SAGE(0),
+    OLIVE(1),
+    MIST(2),
+    CLAY(3),
+    ;
+
+    companion object {
+        fun fromId(id: Int): CoverStyle = entries.firstOrNull { it.id == id } ?: SAGE
+
+        fun isValid(id: Int): Boolean = entries.any { it.id == id }
+    }
+}
+
 /** 导入结果，界面据此给出提示，不直接依赖异常文本。 */
 sealed interface ImportResult {
     data class Success(
@@ -54,6 +70,23 @@ sealed interface ImportResult {
 
 enum class ImportFailureReason {
     NOTEBOOK_NOT_FOUND,
+    COPY_FAILED,
+    DATABASE_FAILED,
+    UNKNOWN,
+}
+
+/** 新建日记本（可带初始页面）的结果。 */
+sealed interface CreateNotebookResult {
+    data class Success(
+        val notebook: Notebook,
+        val importedCount: Int,
+    ) : CreateNotebookResult
+
+    data class Failure(val reason: CreateNotebookFailure) : CreateNotebookResult
+}
+
+enum class CreateNotebookFailure {
+    INVALID_NAME,
     COPY_FAILED,
     DATABASE_FAILED,
     UNKNOWN,

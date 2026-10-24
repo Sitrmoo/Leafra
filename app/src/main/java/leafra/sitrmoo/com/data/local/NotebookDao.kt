@@ -30,9 +30,12 @@ interface NotebookDao {
     @Query("UPDATE notebooks SET updatedAt = :updatedAt WHERE id = :notebookId")
     suspend fun touch(notebookId: String, updatedAt: Long)
 
-    /** 仅当还没有封面时才写入，避免后续导入覆盖第一页封面。 */
-    @Query("UPDATE notebooks SET coverImagePath = :imagePath WHERE id = :notebookId AND coverImagePath IS NULL")
-    suspend fun setCoverIfEmpty(notebookId: String, imagePath: String)
+    @Query("UPDATE notebooks SET name = :name, updatedAt = :updatedAt WHERE id = :notebookId")
+    suspend fun updateName(notebookId: String, name: String, updatedAt: Long)
+
+    /** 只更新生成封面的模板编号；本地生成封面不产生图片文件。 */
+    @Query("UPDATE notebooks SET coverStyle = :coverStyle, updatedAt = :updatedAt WHERE id = :notebookId")
+    suspend fun updateCoverStyle(notebookId: String, coverStyle: Int, updatedAt: Long)
 
     /** 预留阅读进度接口：保存上次阅读的页面 ID（不是页码）。 */
     @Query("UPDATE notebooks SET lastReadPageId = :pageId, updatedAt = :updatedAt WHERE id = :notebookId")

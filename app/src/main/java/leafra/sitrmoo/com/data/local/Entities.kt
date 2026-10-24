@@ -1,5 +1,6 @@
 package leafra.sitrmoo.com.data.local
 
+import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -10,7 +11,8 @@ import androidx.room.PrimaryKey
  * 日记本表。
  *
  * [id] 为 UUID 字符串，作为稳定主键，不依赖自增序号。
- * [coverImagePath] 保存封面图片的相对路径引用（当前为第一页图片），可空。
+ * [coverImagePath] 保留为“真实照片封面”的可选引用（第一阶段写入过第一页路径，
+ * 本阶段改用本地生成封面，不再写入新值）；[coverStyle] 决定生成封面的模板。
  * [lastReadPageId] 为后续阅读进度预留：保存上次阅读的页面 ID，不保存页码。
  */
 @Entity(tableName = "notebooks")
@@ -21,6 +23,8 @@ data class NotebookEntity(
     val createdAt: Long,
     val updatedAt: Long,
     val lastReadPageId: String?,
+    @ColumnInfo(defaultValue = "0")
+    val coverStyle: Int,
 )
 
 /**

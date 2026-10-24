@@ -1,14 +1,13 @@
 package leafra.sitrmoo.com.ui.home
 
-import android.content.Context
-import android.graphics.BitmapFactory
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,16 +18,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -39,11 +39,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -51,29 +50,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import java.io.File
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import leafra.sitrmoo.com.R
 import leafra.sitrmoo.com.data.DiaryRepository
-import leafra.sitrmoo.com.data.model.DiaryPage
-import leafra.sitrmoo.com.data.model.ImportFailureReason
-import leafra.sitrmoo.com.data.model.ImportResult
+import leafra.sitrmoo.com.data.model.CreateNotebookFailure
+import leafra.sitrmoo.com.data.model.CreateNotebookResult
+import leafra.sitrmoo.com.data.model.CoverStyle
 import leafra.sitrmoo.com.data.model.Notebook
+import leafra.sitrmoo.com.ui.components.NotebookCover
+import leafra.sitrmoo.com.ui.components.coverStyleLabelRes
 import leafra.sitrmoo.com.ui.theme.PaperBackground
 import leafra.sitrmoo.com.ui.theme.PaperCream
 
-/** Photo Picker 单次最多选择的图片数量。 */
-private const val MAX_SELECTED_IMAGES = 30
+/** Photo Picker 单次最多选择的初始页面数量。 */
+private const val MAX_INITIAL_IMAGES = 30
 
 /** 日记本名称最大长度，与仓库层校验保持一致。 */
 private const val MAX_NOTEBOOK_NAME_LENGTH = 40
@@ -86,92 +80,207 @@ fun HomeScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-
     val notebooks by repository.notebooks.collectAsState(initial = emptyList())
-    var selectedNotebookId by rememberSaveable { mutableStateOf<String?>(null) }
-    var isImporting by remember { mutableStateOf(false) }
-    var isCreating by remember { mutableStateOf(false) }
+
     var showCreateDialog by remember { mutableStateOf(false) }
-    var pendingDelete by remember { mutableStateOf<Notebook?>(null) }
+    var newName by rememberSaveable { mutableStateOf("") }
+    var newStyle by rememberSaveable { mutableIntStateOf(CoverStyle.SAGE.id) }
+    var newImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var isCreating by remember { mutableStateOf(false) }
 
-    val selectedNotebook = notebooks.firstOrNull { it.id == selectedNotebookId }
+    var actionsTarget by remember { mutableStateOf<Notebook?>(null) }
+    var renameTarget by remember { mutableStateOf<Notebook?>(null) }
+    var coverTarget by remember { mutableStateOf<Notebook?>(null) }
+    var deleteTarget by remember { mutableStateOf<Notebook?>(null) }
+    var showAbout by remember { mutableStateOf(false) }
 
-    // 选中日记本变化时切换到对应的页面流；没有选中时给一个空流。
-    val pagesFlow = remember(selectedNotebookId) {
-        selectedNotebookId?.let(repository::pages) ?: flowOf<List<DiaryPage>>(emptyList())
+    fun showMessage(message: String) {
+        scope.launch { snackbarHostState.showSnackbar(message) }
     }
-    val pages by pagesFlow.collectAsState(initial = emptyList())
 
-    // 列表异步加载完成、或选中的日记本被删除后，自动选中第一本。
-    LaunchedEffect(notebooks, selectedNotebookId) {
-        if (notebooks.none { it.id == selectedNotebookId }) {
-            selectedNotebookId = notebooks.firstOrNull()?.id
+    val initialImagesPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(MAX_INITIAL_IMAGES),
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            newImages = uris
         }
     }
 
-    val imagePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickMultipleVisualMedia(MAX_SELECTED_IMAGES),
-    ) { uris ->
-        val target = selectedNotebookId
-        when {
-            target == null -> scope.launch {
-                snackbarHostState.showSnackbar(context.getString(R.string.no_notebook_selected))
-            }
-
-            uris.isEmpty() -> scope.launch {
-                snackbarHostState.showSnackbar(context.getString(R.string.import_empty))
-            }
-
-            else -> {
-                isImporting = true
-                scope.launch {
-                    try {
-                        val result = repository.importImages(target, uris)
-                        snackbarHostState.showSnackbar(result.toMessage(context))
-                    } finally {
-                        isImporting = false
-                    }
-                }
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            ShelfTopBar(
+                onSearchClick = {
+                    showMessage(context.getString(R.string.search_in_development))
+                },
+                onNewDiary = { showCreateDialog = true },
+                onFavorites = {
+                    showMessage(context.getString(R.string.favorites_in_development))
+                },
+                onSettings = {
+                    showMessage(context.getString(R.string.settings_in_development))
+                },
+                onAbout = { showAbout = true },
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Brush.verticalGradient(listOf(PaperBackground, PaperCream)))
+                .padding(innerPadding),
+        ) {
+            if (notebooks.isEmpty()) {
+                EmptyShelf(onCreate = { showCreateDialog = true })
+            } else {
+                NotebookShelf(
+                    notebooks = notebooks,
+                    onNotebookClick = { actionsTarget = it },
+                )
             }
         }
     }
 
     if (showCreateDialog) {
         CreateNotebookDialog(
+            name = newName,
+            onNameChange = { newName = it },
+            selectedStyle = newStyle,
+            onStyleChange = { newStyle = it },
+            imageCount = newImages.size,
             isBusy = isCreating,
-            onDismiss = { if (!isCreating) showCreateDialog = false },
-            onCreate = { rawName ->
-                isCreating = true
-                scope.launch {
-                    try {
-                        repository.createNotebook(rawName)
-                            .onSuccess { created ->
-                                selectedNotebookId = created.id
-                                showCreateDialog = false
-                                snackbarHostState.showSnackbar(
-                                    context.getString(R.string.notebook_created, created.name),
-                                )
+            onPickImages = {
+                initialImagesPicker.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                )
+            },
+            onDismiss = {
+                if (!isCreating) {
+                    showCreateDialog = false
+                    newName = ""
+                    newStyle = CoverStyle.SAGE.id
+                    newImages = emptyList()
+                }
+            },
+            onCreate = {
+                if (!isCreating) {
+                    isCreating = true
+                    scope.launch {
+                        try {
+                            when (val result = repository.createNotebook(newName, newStyle, newImages)) {
+                                is CreateNotebookResult.Success -> {
+                                    showCreateDialog = false
+                                    newName = ""
+                                    newStyle = CoverStyle.SAGE.id
+                                    newImages = emptyList()
+                                    val message = if (result.importedCount > 0) {
+                                        context.getString(
+                                            R.string.notebook_created_with_pages,
+                                            result.notebook.name,
+                                            result.importedCount,
+                                        )
+                                    } else {
+                                        context.getString(
+                                            R.string.notebook_created,
+                                            result.notebook.name,
+                                        )
+                                    }
+                                    snackbarHostState.showSnackbar(message)
+                                }
+
+                                is CreateNotebookResult.Failure -> {
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(
+                                            createFailureMessage(result.reason),
+                                        ),
+                                    )
+                                }
                             }
-                            .onFailure { error ->
-                                snackbarHostState.showSnackbar(
-                                    error.message
-                                        ?: context.getString(R.string.notebook_create_failed),
-                                )
-                            }
-                    } finally {
-                        isCreating = false
+                        } finally {
+                            isCreating = false
+                        }
                     }
                 }
             },
         )
     }
 
-    pendingDelete?.let { notebook ->
+    actionsTarget?.let { notebook ->
+        NotebookActionsDialog(
+            notebook = notebook,
+            onDismiss = { actionsTarget = null },
+            onRename = {
+                actionsTarget = null
+                renameTarget = notebook
+            },
+            onChangeCover = {
+                actionsTarget = null
+                coverTarget = notebook
+            },
+            onDelete = {
+                actionsTarget = null
+                deleteTarget = notebook
+            },
+        )
+    }
+
+    renameTarget?.let { notebook ->
+        RenameNotebookDialog(
+            notebook = notebook,
+            onDismiss = { renameTarget = null },
+            onConfirm = { updatedName ->
+                renameTarget = null
+                scope.launch {
+                    repository.renameNotebook(notebook.id, updatedName)
+                        .onSuccess {
+                            snackbarHostState.showSnackbar(
+                                context.getString(
+                                    R.string.notebook_renamed,
+                                    updatedName.trim(),
+                                ),
+                            )
+                        }
+                        .onFailure {
+                            snackbarHostState.showSnackbar(
+                                context.getString(R.string.rename_failed),
+                            )
+                        }
+                }
+            },
+        )
+    }
+
+    coverTarget?.let { notebook ->
+        CoverStyleDialog(
+            notebook = notebook,
+            onDismiss = { coverTarget = null },
+            onConfirm = { styleId ->
+                coverTarget = null
+                scope.launch {
+                    repository.updateCoverStyle(notebook.id, styleId)
+                        .onSuccess {
+                            snackbarHostState.showSnackbar(
+                                context.getString(R.string.cover_updated),
+                            )
+                        }
+                        .onFailure {
+                            snackbarHostState.showSnackbar(
+                                context.getString(R.string.cover_update_failed),
+                            )
+                        }
+                }
+            },
+        )
+    }
+
+    deleteTarget?.let { notebook ->
         DeleteNotebookDialog(
             notebook = notebook,
-            onDismiss = { pendingDelete = null },
+            onDismiss = { deleteTarget = null },
             onConfirm = {
-                pendingDelete = null
+                deleteTarget = null
                 scope.launch {
                     repository.deleteNotebook(notebook.id)
                         .onSuccess {
@@ -189,380 +298,97 @@ fun HomeScreen(
         )
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(PaperBackground, PaperCream),
-                    ),
-                )
-                .padding(innerPadding)
-                .padding(horizontal = 24.dp),
-            contentAlignment = Alignment.TopCenter,
-        ) {
-            Column(
-                modifier = Modifier
-                    .widthIn(max = 560.dp)
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(vertical = 32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = stringResource(R.string.home_title),
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    textAlign = TextAlign.Center,
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = stringResource(R.string.home_subtitle),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                if (notebooks.isEmpty()) {
-                    EmptyShelfCard()
-                } else {
-                    NotebookList(
-                        notebooks = notebooks,
-                        selectedNotebookId = selectedNotebookId,
-                        onSelect = { selectedNotebookId = it },
-                        onDelete = { pendingDelete = it },
-                    )
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    PageStrip(
-                        pages = pages,
-                        repository = repository,
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Button(
-                    onClick = {
-                        imagePicker.launch(
-                            PickVisualMediaRequest(
-                                ActivityResultContracts.PickVisualMedia.ImageOnly,
-                            ),
-                        )
-                    },
-                    enabled = selectedNotebook != null && !isImporting,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(14.dp),
-                ) {
-                    if (isImporting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                        )
-                        Spacer(modifier = Modifier.size(8.dp))
-                    }
-                    Text(
-                        text = stringResource(R.string.import_images),
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedButton(
-                    onClick = { showCreateDialog = true },
-                    enabled = !isCreating,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(14.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.create_notebook),
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedButton(
-                    onClick = {
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                context.getString(R.string.reading_mode_placeholder),
-                            )
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                    ),
-                ) {
-                    Text(
-                        text = stringResource(R.string.reading_mode),
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = stringResource(R.string.photo_picker_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-            }
-        }
+    if (showAbout) {
+        AboutDialog(onDismiss = { showAbout = false })
     }
 }
 
 @Composable
-private fun EmptyShelfCard(modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-        ),
-        shadowElevation = 1.dp,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = stringResource(R.string.empty_shelf_label),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = stringResource(R.string.empty_shelf_title),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = stringResource(R.string.empty_shelf_body),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-        }
-    }
-}
-
-@Composable
-private fun NotebookList(
+private fun NotebookShelf(
     notebooks: List<Notebook>,
-    selectedNotebookId: String?,
-    onSelect: (String) -> Unit,
-    onDelete: (Notebook) -> Unit,
-    modifier: Modifier = Modifier,
+    onNotebookClick: (Notebook) -> Unit,
 ) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 148.dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 32.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Text(
-            text = stringResource(R.string.notebook_list_title, notebooks.size),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        notebooks.forEach { notebook ->
-            val selected = notebook.id == selectedNotebookId
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onSelect(notebook.id) },
-                shape = RoundedCornerShape(16.dp),
-                color = if (selected) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surface
-                },
-                border = BorderStroke(
-                    width = 1.dp,
-                    color = if (selected) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                    } else {
-                        MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                    },
-                ),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = notebook.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        Text(
-                            text = stringResource(
-                                R.string.notebook_page_count,
-                                notebook.pageCount,
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-
-                    TextButton(onClick = { onDelete(notebook) }) {
-                        Text(stringResource(R.string.action_delete))
-                    }
-                }
-            }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            ShelfHeader(notebookCount = notebooks.size)
         }
-    }
-}
 
-@Composable
-private fun PageStrip(
-    pages: List<DiaryPage>,
-    repository: DiaryRepository,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-        ),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.page_strip_title),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(horizontal = 20.dp),
+        items(items = notebooks, key = { notebook -> notebook.id }) { notebook ->
+            NotebookCard(
+                notebook = notebook,
+                onClick = { onNotebookClick(notebook) },
             )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (pages.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.no_pages_yet),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                )
-            } else {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(items = pages, key = { page -> page.id }) { page ->
-                        PageThumbnail(page = page, repository = repository)
-                    }
-                }
-            }
         }
     }
 }
 
 @Composable
-private fun PageThumbnail(
-    page: DiaryPage,
-    repository: DiaryRepository,
-    modifier: Modifier = Modifier,
-) {
-    val bitmap by produceState<ImageBitmap?>(initialValue = null, page.imagePath) {
-        value = page.imagePath?.let { path ->
-            withContext(Dispatchers.IO) {
-                runCatching { decodeSampledBitmap(repository.imageFile(path)) }.getOrNull()
-            }
-        }
-    }
-
+private fun ShelfHeader(notebookCount: Int) {
     Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp, bottom = 4.dp),
     ) {
-        Surface(
-            modifier = Modifier.size(width = 96.dp, height = 128.dp),
-            shape = RoundedCornerShape(10.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            border = BorderStroke(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f),
-            ),
-        ) {
-            val image = bitmap
-            if (image != null) {
-                Image(
-                    bitmap = image,
-                    contentDescription = stringResource(
-                        R.string.page_image_description,
-                        page.pageNumber,
-                    ),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(8.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = if (page.isBlank) {
-                            stringResource(R.string.blank_page)
-                        } else {
-                            stringResource(R.string.image_unavailable)
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-            }
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = stringResource(R.string.shelf_title),
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = stringResource(R.string.shelf_count, notebookCount),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
         }
 
         Spacer(modifier = Modifier.height(6.dp))
 
         Text(
-            text = stringResource(R.string.page_number, page.pageNumber),
+            text = stringResource(R.string.shelf_subtitle),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun NotebookCard(
+    notebook: Notebook,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    ) {
+        NotebookCover(
+            notebook = notebook,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Text(
+            text = notebook.name,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        Text(
+            text = stringResource(R.string.notebook_page_count, notebook.pageCount),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -570,35 +396,192 @@ private fun PageThumbnail(
 }
 
 @Composable
+private fun EmptyShelf(onCreate: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp, vertical = 24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            modifier = Modifier
+                .widthIn(max = 420.dp)
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = androidx.compose.foundation.BorderStroke(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
+            ),
+            shadowElevation = 1.dp,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 26.dp, vertical = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = stringResource(R.string.empty_shelf_label),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = stringResource(R.string.empty_shelf_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = stringResource(R.string.empty_shelf_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Spacer(modifier = Modifier.height(22.dp))
+
+                Button(
+                    onClick = onCreate,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(14.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.create_notebook_title),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun CreateNotebookDialog(
+    name: String,
+    onNameChange: (String) -> Unit,
+    selectedStyle: Int,
+    onStyleChange: (Int) -> Unit,
+    imageCount: Int,
     isBusy: Boolean,
+    onPickImages: () -> Unit,
     onDismiss: () -> Unit,
-    onCreate: (String) -> Unit,
+    onCreate: () -> Unit,
 ) {
-    var name by rememberSaveable { mutableStateOf("") }
+    val untitledName = stringResource(R.string.untitled_notebook)
+    val previewNotebook = Notebook(
+        id = "preview",
+        name = name.ifBlank { untitledName },
+        coverImagePath = null,
+        coverStyle = selectedStyle,
+        pageCount = imageCount,
+        createdAt = 0L,
+        updatedAt = 0L,
+        lastReadPageId = null,
+    )
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.create_notebook)) },
+        title = { Text(stringResource(R.string.create_notebook_title)) },
         text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { value ->
-                    if (value.length <= MAX_NOTEBOOK_NAME_LENGTH) {
-                        name = value
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { value ->
+                        if (value.length <= MAX_NOTEBOOK_NAME_LENGTH) {
+                            onNameChange(value)
+                        }
+                    },
+                    enabled = !isBusy,
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.notebook_name_label)) },
+                    placeholder = { Text(stringResource(R.string.notebook_name_placeholder)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                Text(
+                    text = stringResource(R.string.cover_style_label),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    CoverStyle.entries.forEach { style ->
+                        val selected = style.id == selectedStyle
+                        Column(
+                            modifier = Modifier.width(92.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            NotebookCover(
+                                notebook = previewNotebook.copy(coverStyle = style.id),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(
+                                        width = if (selected) 2.dp else 1.dp,
+                                        color = if (selected) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                                        },
+                                        shape = RoundedCornerShape(16.dp),
+                                    )
+                                    .clickable(enabled = !isBusy) { onStyleChange(style.id) },
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Text(
+                                text = stringResource(coverStyleLabelRes(style)),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
-                },
-                enabled = !isBusy,
-                singleLine = true,
-                label = { Text(stringResource(R.string.notebook_name_label)) },
-                placeholder = { Text(stringResource(R.string.notebook_name_placeholder)) },
-                modifier = Modifier.fillMaxWidth(),
-            )
+                }
+
+                OutlinedButton(
+                    onClick = onPickImages,
+                    enabled = !isBusy,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text(
+                        text = if (imageCount == 0) {
+                            stringResource(R.string.select_initial_images)
+                        } else {
+                            stringResource(R.string.initial_images_selected, imageCount)
+                        },
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+
+                Text(
+                    text = stringResource(R.string.initial_images_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         },
         confirmButton = {
             TextButton(
                 enabled = name.isNotBlank() && !isBusy,
-                onClick = { onCreate(name) },
+                onClick = onCreate,
             ) {
                 Text(stringResource(R.string.action_create))
             }
@@ -608,6 +591,167 @@ private fun CreateNotebookDialog(
                 enabled = !isBusy,
                 onClick = onDismiss,
             ) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
+}
+
+@Composable
+private fun NotebookActionsDialog(
+    notebook: Notebook,
+    onDismiss: () -> Unit,
+    onRename: () -> Unit,
+    onChangeCover: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = notebook.name,
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = stringResource(R.string.notebook_actions_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(
+                    onClick = onRename,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.action_rename))
+                }
+                TextButton(
+                    onClick = onChangeCover,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.action_change_cover))
+                }
+                TextButton(
+                    onClick = onDelete,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_delete),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
+}
+
+@Composable
+private fun RenameNotebookDialog(
+    notebook: Notebook,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    var value by remember(notebook.id) { mutableStateOf(notebook.name) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.rename_notebook_title)) },
+        text = {
+            OutlinedTextField(
+                value = value,
+                onValueChange = { input ->
+                    if (input.length <= MAX_NOTEBOOK_NAME_LENGTH) {
+                        value = input
+                    }
+                },
+                singleLine = true,
+                label = { Text(stringResource(R.string.notebook_name_label)) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                enabled = value.isNotBlank() && value.trim() != notebook.name,
+                onClick = { onConfirm(value) },
+            ) {
+                Text(stringResource(R.string.action_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
+}
+
+@Composable
+private fun CoverStyleDialog(
+    notebook: Notebook,
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit,
+) {
+    var selected by remember(notebook.id) { mutableIntStateOf(notebook.coverStyle) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.cover_style_title)) },
+        text = {
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                CoverStyle.entries.forEach { style ->
+                    val isSelected = style.id == selected
+                    Column(
+                        modifier = Modifier.width(104.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        NotebookCover(
+                            notebook = notebook.copy(coverStyle = style.id),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(
+                                    width = if (isSelected) 2.dp else 1.dp,
+                                    color = if (isSelected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                                    },
+                                    shape = RoundedCornerShape(16.dp),
+                                )
+                                .clickable { selected = style.id },
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = stringResource(coverStyleLabelRes(style)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(selected) }) {
+                Text(stringResource(R.string.action_apply))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.action_cancel))
             }
         },
@@ -634,7 +778,10 @@ private fun DeleteNotebookDialog(
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text(stringResource(R.string.action_delete))
+                Text(
+                    text = stringResource(R.string.action_delete),
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
         },
         dismissButton = {
@@ -645,43 +792,42 @@ private fun DeleteNotebookDialog(
     )
 }
 
-/** 把导入结果转换成界面文案，避免 Composable 里散落 when 分支。 */
-private fun ImportResult.toMessage(context: Context): String = when (this) {
-    is ImportResult.Success -> context.getString(
-        R.string.import_success,
-        importedCount,
-        firstPageNumber,
-    )
+@Composable
+private fun AboutDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val versionName = remember {
+        runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull().orEmpty()
+    }
 
-    ImportResult.EmptySelection -> context.getString(R.string.import_empty)
-
-    is ImportResult.Failure -> context.getString(
-        when (reason) {
-            ImportFailureReason.NOTEBOOK_NOT_FOUND -> R.string.import_failed_notebook
-            ImportFailureReason.COPY_FAILED -> R.string.import_failed_copy
-            ImportFailureReason.DATABASE_FAILED -> R.string.import_failed_database
-            ImportFailureReason.UNKNOWN -> R.string.import_failed_generic
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.about_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = stringResource(R.string.about_version, versionName),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = stringResource(R.string.about_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_close))
+            }
         },
     )
 }
 
-/** 按需下采样解码缩略图；失败或文件缺失时返回 null，由界面显示占位。 */
-private fun decodeSampledBitmap(file: File, maxSize: Int = 320): ImageBitmap? {
-    if (!file.isFile) return null
-
-    return try {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(file.absolutePath, bounds)
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-
-        var sampleSize = 1
-        while (bounds.outWidth / sampleSize > maxSize || bounds.outHeight / sampleSize > maxSize) {
-            sampleSize *= 2
-        }
-
-        val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
-        BitmapFactory.decodeFile(file.absolutePath, options)?.asImageBitmap()
-    } catch (t: Throwable) {
-        null
-    }
+private fun createFailureMessage(reason: CreateNotebookFailure): Int = when (reason) {
+    CreateNotebookFailure.INVALID_NAME -> R.string.create_failed_name
+    CreateNotebookFailure.COPY_FAILED -> R.string.create_failed_copy
+    CreateNotebookFailure.DATABASE_FAILED -> R.string.create_failed_database
+    CreateNotebookFailure.UNKNOWN -> R.string.create_failed_generic
 }

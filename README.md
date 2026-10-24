@@ -1,33 +1,33 @@
-# Leafra
+# Leafora
 
-Leafra 是一个用于把**纸质日记电子化**的 Android 应用。你可以从手机相册导入日记扫描图片，把它们整理成一本电子书，并逐步获得接近纸质书的阅读体验。
+Leafora 是一个用于把**纸质日记电子化**的 Android 应用。你可以从手机相册导入日记扫描图片，把它们整理成一本电子书，并逐步获得接近纸质书的阅读体验。
 
-- 应用名：**Leafra**
-- 包名 / applicationId：`leafra.sitrmoo.com`
+- 应用名（显示名）：**Leafora**
+- 包名 / applicationId：`leafra.sitrmoo.com`（保持不变）
 - 仓库：`https://github.com/Sitrmoo/Leafra.git`
 
-本仓库当前处于**数据层阶段**：已能把选中的扫描图片复制到应用私有目录，并用 Room 保存日记本与页面元数据；阅读器与翻页尚未实现。
+本仓库当前处于**书架阶段**：已有可滚动书架、本地生成封面、日记本重命名/换封面/删除，以及带初始页面的新建流程；阅读器、搜索与备份尚未实现。
 
 ## 当前已实现
 
-- Kotlin + Jetpack Compose 原生 Android 项目骨架。
-- 中文首页：“我的日记”、书架/空书架提示、纸张风格配色。
-- 新建日记本：输入名称后写入 Room，重启应用后仍然存在。
-- “导入日记图片”按钮：调用 Android 系统 **Photo Picker**，最多一次选择 30 张；图片复制到应用私有目录 `files/diary-images/`，数据库只保存相对路径。
-- 首页展示日记本列表、页面数量与已导入页面的缩略图；页码按页面排序动态计算（从 1 开始连续），页面主键使用 UUID。
-- 删除日记本时按引用计数清理图片；应用启动时清理数据库未引用的孤立图片。
-- “阅读模式”入口：点击后用 Snackbar 提示“正在开发中”，按钮有真实反馈。
+- Kotlin + Jetpack Compose 原生 Android 项目骨架，应用显示名为 **Leafora**。
+- 固定顶栏：本地绘制 Logo、搜索框占位（本阶段不实现搜索逻辑）、菜单（新建日记、收藏、设置、关于）。
+- 书架网格：封面 + 名称 + 页数，`LazyVerticalGrid` 自适应列数，数量增多可滚动；长名称最多两行省略。
+- 新建日记本：填写名称、选择预设封面风格，并通过系统 **Photo Picker** 多选初始页面（最多 30 张）。
+- 本地生成封面：按名称与预设模板（奶油白纸张、鼠尾草绿、植物装饰、标题排版）用 Compose 实时绘制，不联网、不写图片文件、不覆盖原始照片。
+- 日记本管理：重命名、更换封面、删除（二次确认）；删除时按引用计数清理图片。
+- 图片复制到应用私有目录 `files/diary-images/`，数据库只保存相对路径；重启应用后书架与页面仍存在。
+- 页码按页面排序动态计算（从 1 开始连续），页面主键使用 UUID。
 - GitHub Actions 云端构建 Debug APK，并上传构建产物。
 - 完整的 Gradle Wrapper（Gradle 8.9）。
-- 适配普通 Android 手机屏幕，内容区限制最大宽度，小屏可滚动。
 
 ## 当前尚未实现
 
-- DataStore 设置存储。
-- Coil 图片加载（当前用 `BitmapFactory` 下采样解码缩略图）。
-- 单页阅读模式、仿真立体书翻页、3D 渲染。
-- 收藏、日期、描述等页面编辑界面（数据库字段已预留）。
-- OCR、云同步、账号系统、在线 AI、广告或付费功能。
+- 搜索逻辑（仅保留占位入口，点击提示开发中）。
+- 收藏与设置页面（菜单项提示开发中）。
+- 完整阅读器、单页阅读模式、仿真立体书翻页、3D 渲染。
+- 页面收藏 / 日期 / 描述的编辑界面（数据库字段已预留）。
+- 备份、DataStore 设置存储、云同步、OCR、在线 AI、广告或付费功能。
 - 正式签名与 Google Play 发布配置。
 
 
@@ -38,7 +38,7 @@ Leafra 是一个用于把**纸质日记电子化**的 Android 应用。你可以
 | 组件 | 固定版本 | 说明 |
 | --- | --- | --- |
 | JDK | 17（Temurin） | 本地与 GitHub Actions 一致 |
-| 应用名 | Leafra | `strings.xml` 中的 `app_name` |
+| 应用名（显示名） | Leafora | `strings.xml` 中的 `app_name`；包名 / applicationId 不变 |
 | 包名 / applicationId / namespace | `leafra.sitrmoo.com` | 源码目录为 `java/leafra/sitrmoo/com/` |
 | Gradle | 8.9 | 由 `gradle/wrapper/gradle-wrapper.properties` 固定，Wrapper JAR 由官方 Gradle 8.9 生成 |
 | Android Gradle Plugin | 8.7.3 | 要求 Gradle 8.9+、JDK 17 |
@@ -76,12 +76,14 @@ Leafra 是一个用于把**纸质日记电子化**的 Android 应用。你可以
 │     │  ├─ LeafraApplication.kt        # 进程级数据库/仓库初始化与孤立文件清理
 │     │  ├─ MainActivity.kt             # 入口 Activity
 │     │  ├─ data/
-│     │  │  ├─ DiaryRepository.kt       # 唯一数据入口：事务、回滚、引用计数
+│     │  │  ├─ DiaryRepository.kt       # 唯一数据入口：事务、回滚、引用计数、重命名/封面
 │     │  │  ├─ ImageStore.kt            # 私有目录图片复制/删除
-│     │  │  ├─ local/                   # Room 实体、DAO、Database
-│     │  │  └─ model/                   # Notebook / DiaryPage / ImportResult
+│     │  │  ├─ local/                   # Room 实体、DAO、Database（含 1→2 迁移）
+│     │  │  └─ model/                   # Notebook / DiaryPage / CoverStyle / 结果类型
 │     │  └─ ui/
-│     │     ├─ home/HomeScreen.kt       # 首页：日记本、导入、缩略图
+│     │     ├─ components/NotebookCover.kt  # 本地生成封面模板
+│     │     ├─ home/HomeScreen.kt       # 书架网格与管理对话框
+│     │     ├─ home/ShelfTopBar.kt      # 顶栏：Logo、搜索占位、菜单
 │     │     └─ theme/                   # 纸张风格配色与字体
 │     └─ res/                           # 文案、主题、启动图标
 ├─ gradle/wrapper/                      # Gradle Wrapper（含官方 JAR）
@@ -112,7 +114,7 @@ https://github.com/Sitrmoo/Leafra.git
 ```powershell
 cd C:\Website\leafra
 git add .
-git commit -m "feat: rename app to Leafra"
+git commit -m "feat: add bookshelf and local covers"
 git push origin main
 ```
 
@@ -176,7 +178,7 @@ Artifact 默认保留 30 天（工作流中 `retention-days: 30`）。
 
 1. 把 `app-debug.apk` 通过微信文件传输、数据线、网盘或 GitHub 下载到手机。
 2. 在手机上点击 APK。系统提示“不允许安装未知来源应用”时，进入设置允许当前文件管理器/浏览器安装应用。
-3. 完成安装，桌面会出现 **Leafra** 图标。
+3. 完成安装，桌面会出现 **Leafora** 图标。
 4. 最低支持 Android 8.0（API 26）。
 
 说明：
@@ -278,16 +280,19 @@ Kotlin 2.0+ 必须应用 `org.jetbrains.kotlin.plugin.compose`，并且版本与
 
 ## 数据模型与关键约定
 
-- `notebooks`：`id`（UUID）、`name`、`coverImagePath`、`createdAt`、`updatedAt`、`lastReadPageId`（预留阅读进度）。
+- `notebooks`：`id`（UUID）、`name`、`coverImagePath`（可选的真实照片封面，当前不写入）、`coverStyle`（本地封面模板，默认 0）、`createdAt`、`updatedAt`、`lastReadPageId`（预留阅读进度）。
 - `pages`：`id`（UUID）、`notebookId`（外键，级联删除）、`sortOrder`、`entryDate?`、`description?`、`imagePath?`、`isBlank`、`isFavorite`、`createdAt`。
+- 数据库版本为 2；版本 1 → 2 通过 `ALTER TABLE notebooks ADD COLUMN coverStyle` 迁移，不重建数据库、不清空已有数据。
 - 页码不落库，由 Repository 按 `sortOrder` 计算（从 1 开始连续）；页面以 `id` 寻址，不能把页码当主键。
+- 封面由 Compose 按名称与模板实时绘制，不生成图片文件；删除日记本只删除数据库记录与仍被引用的原始照片。
 - 导入是“先复制文件，再单事务写入”；任一步失败都会删除本次文件并回滚事务。
 - 删除日记本按引用计数清理图片；数据库未引用的孤立图片在应用启动时清理。
 
 ## 下一步开发建议
 
-1. 用 DataStore 保存阅读设置。
-2. 引入 Coil 展示缩略图与阅读页。
-3. 实现普通单页阅读模式，并接入 `setLastReadPage` 记录阅读进度。
-4. 页面收藏、日期与描述的编辑界面。
-5. 单页阅读稳定后，再实现仿真翻页效果。
+1. 普通单页阅读模式：用 `pages(id)` 按排序展示，翻页时调用 `setLastReadPage`。
+2. 搜索逻辑（名称 / 日期），复用顶栏占位入口。
+3. 收藏与设置页面。
+4. DataStore 保存阅读设置；Coil 加载阅读页大图。
+5. 备份 / 导出 / 导入（后续单独设计）。
+6. 单页阅读稳定后，再实现仿真翻页效果。

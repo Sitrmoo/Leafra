@@ -17,6 +17,9 @@ import leafra.sitrmoo.com.data.local.LeafraDatabase
 import leafra.sitrmoo.com.data.local.NotebookEntity
 import leafra.sitrmoo.com.data.local.NotebookSummary
 import leafra.sitrmoo.com.data.local.PageEntity
+import leafra.sitrmoo.com.data.model.CreateNotebookFailure
+import leafra.sitrmoo.com.data.model.CreateNotebookResult
+import leafra.sitrmoo.com.data.model.CoverStyle
 import leafra.sitrmoo.com.data.model.DiaryPage
 import leafra.sitrmoo.com.data.model.ImportFailureReason
 import leafra.sitrmoo.com.data.model.ImportResult
@@ -60,24 +63,61 @@ class DiaryRepository(
             entities.mapIndexed { index, entity -> entity.toModel(pageNumber = index + 1) }
         }
 
-    /** 新建日记本；名称去除首尾空白后不能为空。 */
-    suspend fun createNotebook(rawName: String): Result<Notebook> = withContext(Dispatchers.IO) {
-        runCatching {
-            val name = rawName.trim()
-            require(name.isNotEmpty()) { "日记本名称不能为空" }
-            require(name.length <= MAX_NAME_LENGTH) { "日记本名称不能超过 $MAX_NAME_LENGTH 个字" }
+    /**
+     * 新建日记本，可同时导入初始页面。
+     *
+     * 如果初始图片导入失败，会删除刚创建的日记本并回滚已复制的文件，
+     * 避免留下“创建成功但页面丢失”的半成品。
+     */
+    suspend fun createNotebook(
+        rawName: String,
+        coverStyle: Int,
+        initialImages: List<Uri> = emptyList(),
+    ): CreateNotebookResult = withContext(Dispatchers.IO) {
+        val name = rawName.trim()
+        if (name.isEmpty() || name.length > MAX_NAME_LENGTH) {
+            return@withContext CreateNotebookResult.Failure(CreateNotebookFailure.INVALID_NAME)
+        }
 
-            val now = System.currentTimeMillis()
-            val entity = NotebookEntity(
-                id = UUID.randomUUID().toString(),
-                name = name,
-                coverImagePath = null,
-                createdAt = now,
-                updatedAt = now,
-                lastReadPageId = null,
+        val style = if (CoverStyle.isValid(coverStyle)) coverStyle else CoverStyle.SAGE.id
+        val now = System.currentTimeMillis()
+        val entity = NotebookEntity(
+            id = UUID.randomUUID().toString(),
+            name = name,
+            coverImagePath = null,
+            createdAt = now,
+            updatedAt = now,
+            lastReadPageId = null,
+            coverStyle = style,
+        )
+
+        val inserted = runCatching { notebookDao.insert(entity) }.isSuccess
+        if (!inserted) {
+            return@withContext CreateNotebookResult.Failure(CreateNotebookFailure.DATABASE_FAILED)
+        }
+
+        if (initialImages.isEmpty()) {
+            return@withContext CreateNotebookResult.Success(
+                notebook = NotebookSummary(notebook = entity, pageCount = 0).toModel(),
+                importedCount = 0,
             )
-            notebookDao.insert(entity)
-            NotebookSummary(notebook = entity, pageCount = 0).toModel()
+        }
+
+        when (val imported = importImages(entity.id, initialImages)) {
+            is ImportResult.Success -> {
+                val refreshed = notebookDao.findById(entity.id) ?: entity
+                val pageCount = pageDao.getPages(entity.id).size
+                CreateNotebookResult.Success(
+                    notebook = NotebookSummary(refreshed, pageCount).toModel(),
+                    importedCount = imported.importedCount,
+                )
+            }
+
+            else -> {
+                // 导入失败时撤销整个创建动作：页面事务已回滚，删除空日记本。
+                runCatching { deleteNotebook(entity.id) }
+                CreateNotebookResult.Failure(imported.toCreateFailure())
+            }
         }
     }
 
@@ -120,7 +160,6 @@ class DiaryRepository(
 
                     database.withTransaction {
                         pageDao.insertAll(pages)
-                        notebookDao.setCoverIfEmpty(notebookId, copiedPaths.first())
                         notebookDao.touch(notebookId, now)
                     }
 
@@ -139,6 +178,30 @@ class DiaryRepository(
             }
         }
     }
+
+    /** 重命名日记本；名称规则与新建一致。 */
+    suspend fun renameNotebook(notebookId: String, rawName: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val name = rawName.trim()
+                require(name.isNotEmpty()) { "日记本名称不能为空" }
+                require(name.length <= MAX_NAME_LENGTH) {
+                    "日记本名称不能超过 $MAX_NAME_LENGTH 个字"
+                }
+                requireNotNull(notebookDao.findById(notebookId)) { "日记本不存在" }
+                notebookDao.updateName(notebookId, name, System.currentTimeMillis())
+            }
+        }
+
+    /** 更换本地生成封面的风格；只改模板编号，不产生或覆盖任何图片文件。 */
+    suspend fun updateCoverStyle(notebookId: String, coverStyle: Int): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                require(CoverStyle.isValid(coverStyle)) { "未知的封面风格" }
+                requireNotNull(notebookDao.findById(notebookId)) { "日记本不存在" }
+                notebookDao.updateCoverStyle(notebookId, coverStyle, System.currentTimeMillis())
+            }
+        }
 
     /**
      * 删除日记本及其页面。
@@ -209,6 +272,7 @@ class DiaryRepository(
         id = notebook.id,
         name = notebook.name,
         coverImagePath = notebook.coverImagePath,
+        coverStyle = notebook.coverStyle,
         pageCount = pageCount,
         createdAt = notebook.createdAt,
         updatedAt = notebook.updatedAt,
@@ -227,6 +291,19 @@ class DiaryRepository(
         isFavorite = isFavorite,
         createdAt = createdAt,
     )
+
+    private fun ImportResult.toCreateFailure(): CreateNotebookFailure = when (this) {
+        is ImportResult.Failure -> when (reason) {
+            ImportFailureReason.COPY_FAILED -> CreateNotebookFailure.COPY_FAILED
+            ImportFailureReason.DATABASE_FAILED -> CreateNotebookFailure.DATABASE_FAILED
+            ImportFailureReason.NOTEBOOK_NOT_FOUND,
+            ImportFailureReason.UNKNOWN,
+            -> CreateNotebookFailure.UNKNOWN
+        }
+
+        ImportResult.EmptySelection -> CreateNotebookFailure.UNKNOWN
+        is ImportResult.Success -> CreateNotebookFailure.UNKNOWN
+    }
 
     private companion object {
         const val MAX_NAME_LENGTH = 40
