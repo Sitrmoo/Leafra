@@ -39,6 +39,9 @@ import androidx.compose.ui.unit.sp
 import leafra.sitrmoo.com.R
 import leafra.sitrmoo.com.data.model.CoverStyle
 import leafra.sitrmoo.com.data.model.Notebook
+import leafra.sitrmoo.com.ui.theme.InkBrown
+import leafra.sitrmoo.com.ui.theme.InkMuted
+import leafra.sitrmoo.com.ui.theme.SageGreen
 
 /**
  * 本地生成封面：不读写任何图片文件，只根据日记本名称与预设模板实时绘制。
@@ -59,10 +62,10 @@ private data class CoverPalette(
 )
 
 private val sagePalette = CoverPalette(
-    background = listOf(Color(0xFFFCF8EF), Color(0xFFF0E8D8)),
-    accent = Color(0xFF8FA98C),
-    ink = Color(0xFF3F3A31),
-    mutedInk = Color(0xFF7B7265),
+    background = listOf(Color(0xFFFCF8EF), Color(0xFFF0E7D4)),
+    accent = SageGreen,
+    ink = InkBrown,
+    mutedInk = InkMuted,
     decoration = CoverDecoration.SPRIG,
 )
 

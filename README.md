@@ -6,12 +6,13 @@ Leafora 是一个用于把**纸质日记电子化**的 Android 应用。你可�
 - 包名 / applicationId：`leafra.sitrmoo.com`（保持不变）
 - 仓库：`https://github.com/Sitrmoo/Leafra.git`
 
-本仓库当前处于**书架阶段**：已有可滚动书架、本地生成封面、日记本重命名/换封面/删除，以及带初始页面的新建流程；阅读器、搜索与备份尚未实现。
+本仓库当前处于**品牌视觉整合完成的书架阶段**：已有可滚动书架、本地生成封面、日记本重命名/换封面/删除，以及带初始页面的新建流程；阅读器、搜索与备份尚未实现。
 
 ## 当前已实现
 
 - Kotlin + Jetpack Compose 原生 Android 项目骨架，应用显示名为 **Leafora**。
-- 固定顶栏：本地绘制 Logo、搜索框占位（本阶段不实现搜索逻辑）、菜单（新建日记、收藏、设置、关于）。
+- 品牌视觉：鼠尾草绿 + 奶油白纸张色系，官方叶片 Logo 已用于自适应启动图标、Android 13 单色主题图标与首页顶栏。
+- 固定顶栏：官方 Logo、搜索框占位（本阶段不实现搜索逻辑）、菜单（新建日记、收藏、设置、关于）。
 - 书架网格：封面 + 名称 + 页数，`LazyVerticalGrid` 自适应列数，数量增多可滚动；长名称最多两行省略。
 - 新建日记本：填写名称、选择预设封面风格，并通过系统 **Photo Picker** 多选初始页面（最多 30 张）。
 - 本地生成封面：按名称与预设模板（奶油白纸张、鼠尾草绿、植物装饰、标题排版）用 Compose 实时绘制，不联网、不写图片文件、不覆盖原始照片。
@@ -84,8 +85,9 @@ Leafora 是一个用于把**纸质日记电子化**的 Android 应用。你可�
 │     │     ├─ components/NotebookCover.kt  # 本地生成封面模板
 │     │     ├─ home/HomeScreen.kt       # 书架网格与管理对话框
 │     │     ├─ home/ShelfTopBar.kt      # 顶栏：Logo、搜索占位、菜单
-│     │     └─ theme/                   # 纸张风格配色与字体
-│     └─ res/                           # 文案、主题、启动图标
+│     │     └─ theme/                   # 鼠尾草绿 + 奶油白配色与字体
+│     └─ res/                           # 文案、主题、自适应图标与 Logo 矢量
+├─ branding/                            # 官方 Logo 源文件（SVG）与品牌规范
 ├─ gradle/wrapper/                      # Gradle Wrapper（含官方 JAR）
 ├─ build.gradle.kts                     # 根构建脚本（插件版本）
 ├─ settings.gradle.kts
@@ -277,6 +279,14 @@ Kotlin 2.0+ 必须应用 `org.jetbrains.kotlin.plugin.compose`，并且版本与
 - 应用没有网络权限，不上传任何图片或日记内容。
 - 不包含账号系统、云端数据库、OCR 或在线 AI。
 - `.gitignore` 已排除签名文件、密钥、`local.properties`、构建产物，以及 `diary-images/` 等私人日记图片目录。请勿把私人日记图片或 API 密钥提交到 Git。
+
+## 品牌与视觉
+
+- 官方 Logo 源文件：`branding/leafora_icon.svg`（512 × 512，透明背景）；派生规则见 `branding/README.md`。
+- 启动器图标：`res/mipmap-anydpi-v26/ic_launcher.xml` 与 `ic_launcher_round.xml`，前景为 `drawable/ic_launcher_foreground.xml`（108dp 画布、内容约 60dp 居中），并包含 Android 13 主题图标用的 `drawable/ic_launcher_monochrome.xml`。
+- 首页顶栏品牌图形：`drawable/ic_brand_mark.xml`，只在首页顶部出现，不随内容滚动，也不在其它页面重复。
+- 色板：鼠尾草绿 `#87977A`、深鼠尾草 `#5C6E54`、奶油白 `#F8F4E8`、纸张背景 `#F6F0E3`、墨色 `#3E3A31`；Compose 映射见 `ui/theme/Color.kt` 与 `Theme.kt`。
+- 图标底色为奶油白 `#F4EDDC`；所有图形均为本地资源，不请求网络。
 
 ## 数据模型与关键约定
 

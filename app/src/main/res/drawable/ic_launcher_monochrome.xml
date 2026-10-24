@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 13+ 主题图标使用的单色剪影，系统会按壁纸主题着色。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <group
+        android:scaleX="0.155"
+        android:scaleY="0.155"
+        android:translateX="18.9"
+        android:translateY="14.2">
+
+        <path
+            android:fillColor="#000000"
+            android:pathData="M118,389 C91,321 94,247 137,184 C181,120 255,87 365,67 C365,167 341,247 289,302 C246,347 184,372 118,389 Z" />
+
+        <path
+            android:fillColor="#000000"
+            android:pathData="M119,389 C145,384 165,391 179,408 C151,417 130,410 119,389 Z" />
+
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M119,389 C111,414 101,431 88,446"
+            android:strokeColor="#000000"
+            android:strokeLineCap="round"
+            android:strokeWidth="8" />
+    </group>
+</vector>

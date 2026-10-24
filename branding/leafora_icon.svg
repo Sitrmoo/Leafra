@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Leafora icon</title>
+  <desc id="desc">A vintage sage-green leaf with cream folded-page details on a transparent background.</desc>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <!-- Main botanical leaf -->
+    <path d="M118 389C91 321 94 247 137 184 181 120 255 87 365 67 365 167 341 247 289 302 246 347 184 372 118 389Z" fill="#87977A" stroke="#64745B" stroke-width="4"/>
+    <!-- Leaf vein -->
+    <path d="M119 389C175 301 238 211 361 72" fill="none" stroke="#EDE7D5" stroke-width="7"/>
+    <path d="M171 306C160 267 165 233 185 204" fill="none" stroke="#D9DEC9" stroke-width="4"/>
+    <path d="M219 244C218 207 232 174 258 147" fill="none" stroke="#D9DEC9" stroke-width="4"/>
+    <path d="M264 192C291 181 314 161 332 134" fill="none" stroke="#D9DEC9" stroke-width="4"/>
+    <!-- Folded-page cutout / inner leaf -->
+    <path d="M121 386C164 332 211 285 257 246 291 218 324 195 350 174 342 223 321 267 287 301 243 344 184 371 121 386Z" fill="#F8F4E8" stroke="#D8D0BA" stroke-width="3"/>
+    <path d="M121 386C188 345 250 307 337 203" fill="none" stroke="#C8C1AA" stroke-width="4"/>
+    <!-- Small lower leaf accent -->
+    <path d="M119 389C145 384 165 391 179 408 151 417 130 410 119 389Z" fill="#87977A" stroke="#64745B" stroke-width="3"/>
+    <!-- Stem -->
+    <path d="M119 389C111 414 101 431 88 446" fill="none" stroke="#64745B" stroke-width="8"/>
+  </g>
+</svg>

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 首页顶栏使用的品牌图形：与启动图标同源，裁掉多余留白。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="32dp"
+    android:viewportWidth="300"
+    android:viewportHeight="400">
+
+    <group
+        android:translateX="-75"
+        android:translateY="-55">
+
+        <path
+            android:fillColor="#87977A"
+            android:pathData="M118,389 C91,321 94,247 137,184 C181,120 255,87 365,67 C365,167 341,247 289,302 C246,347 184,372 118,389 Z"
+            android:strokeColor="#64745B"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="4" />
+
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M119,389 C175,301 238,211 361,72"
+            android:strokeColor="#EDE7D5"
+            android:strokeLineCap="round"
+            android:strokeWidth="7" />
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M171,306 C160,267 165,233 185,204"
+            android:strokeColor="#D9DEC9"
+            android:strokeLineCap="round"
+            android:strokeWidth="4" />
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M219,244 C218,207 232,174 258,147"
+            android:strokeColor="#D9DEC9"
+            android:strokeLineCap="round"
+            android:strokeWidth="4" />
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M264,192 C291,181 314,161 332,134"
+            android:strokeColor="#D9DEC9"
+            android:strokeLineCap="round"
+            android:strokeWidth="4" />
+
+        <path
+            android:fillColor="#F8F4E8"
+            android:pathData="M121,386 C164,332 211,285 257,246 C291,218 324,195 350,174 C342,223 321,267 287,301 C243,344 184,371 121,386 Z"
+            android:strokeColor="#D8D0BA"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="3" />
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M121,386 C188,345 250,307 337,203"
+            android:strokeColor="#C8C1AA"
+            android:strokeLineCap="round"
+            android:strokeWidth="4" />
+
+        <path
+            android:fillColor="#87977A"
+            android:pathData="M119,389 C145,384 165,391 179,408 C151,417 130,410 119,389 Z"
+            android:strokeColor="#64745B"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="3" />
+
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M119,389 C111,414 101,431 88,446"
+            android:strokeColor="#64745B"
+            android:strokeLineCap="round"
+            android:strokeWidth="8" />
+    </group>
+</vector>

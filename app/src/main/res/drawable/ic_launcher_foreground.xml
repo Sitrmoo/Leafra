@@ -1,49 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  由 branding/leafora_icon.svg 转换而来。
+  108x108 画布，内容缩放到 60dp 高并居中，保证落在自适应图标的安全区内。
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- 深色书封 -->
-    <path
-        android:fillColor="#6D4C33"
-        android:pathData="M23,33 C33,27 45,27 53,33 L53,80 C45,74 33,74 23,80 Z" />
-    <path
-        android:fillColor="#6D4C33"
-        android:pathData="M55,33 C63,27 75,27 85,33 L85,80 C75,74 63,74 55,80 Z" />
+    <group
+        android:scaleX="0.155"
+        android:scaleY="0.155"
+        android:translateX="18.9"
+        android:translateY="14.2">
 
-    <!-- 米色书页 -->
-    <path
-        android:fillColor="#FFF8E9"
-        android:pathData="M28,38 C35,33 45,33 52,38 L52,74 C45,69 35,69 28,74 Z" />
-    <path
-        android:fillColor="#FFF8E9"
-        android:pathData="M56,38 C63,33 73,33 80,38 L80,74 C73,69 63,69 56,74 Z" />
+        <!-- 主叶片 -->
+        <path
+            android:fillColor="#87977A"
+            android:pathData="M118,389 C91,321 94,247 137,184 C181,120 255,87 365,67 C365,167 341,247 289,302 C246,347 184,372 118,389 Z"
+            android:strokeColor="#64745B"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="4" />
 
-    <!-- 书页横线 -->
-    <path
-        android:fillColor="#00000000"
-        android:pathData="M33,45 C38,43 43,43 47,45"
-        android:strokeColor="#D8C3A5"
-        android:strokeLineCap="round"
-        android:strokeWidth="1.5" />
-    <path
-        android:fillColor="#00000000"
-        android:pathData="M33,53 C38,51 43,51 47,53"
-        android:strokeColor="#D8C3A5"
-        android:strokeLineCap="round"
-        android:strokeWidth="1.5" />
-    <path
-        android:fillColor="#00000000"
-        android:pathData="M61,45 C65,43 70,43 75,45"
-        android:strokeColor="#D8C3A5"
-        android:strokeLineCap="round"
-        android:strokeWidth="1.5" />
-    <path
-        android:fillColor="#00000000"
-        android:pathData="M61,53 C65,51 70,51 75,53"
-        android:strokeColor="#D8C3A5"
-        android:strokeLineCap="round"
-        android:strokeWidth="1.5" />
+        <!-- 叶脉 -->
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M119,389 C175,301 238,211 361,72"
+            android:strokeColor="#EDE7D5"
+            android:strokeLineCap="round"
+            android:strokeWidth="7" />
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M171,306 C160,267 165,233 185,204"
+            android:strokeColor="#D9DEC9"
+            android:strokeLineCap="round"
+            android:strokeWidth="4" />
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M219,244 C218,207 232,174 258,147"
+            android:strokeColor="#D9DEC9"
+            android:strokeLineCap="round"
+            android:strokeWidth="4" />
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M264,192 C291,181 314,161 332,134"
+            android:strokeColor="#D9DEC9"
+            android:strokeLineCap="round"
+            android:strokeWidth="4" />
+
+        <!-- 折页内叶 -->
+        <path
+            android:fillColor="#F8F4E8"
+            android:pathData="M121,386 C164,332 211,285 257,246 C291,218 324,195 350,174 C342,223 321,267 287,301 C243,344 184,371 121,386 Z"
+            android:strokeColor="#D8D0BA"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="3" />
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M121,386 C188,345 250,307 337,203"
+            android:strokeColor="#C8C1AA"
+            android:strokeLineCap="round"
+            android:strokeWidth="4" />
+
+        <!-- 下方小叶 -->
+        <path
+            android:fillColor="#87977A"
+            android:pathData="M119,389 C145,384 165,391 179,408 C151,417 130,410 119,389 Z"
+            android:strokeColor="#64745B"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="3" />
+
+        <!-- 叶柄 -->
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M119,389 C111,414 101,431 88,446"
+            android:strokeColor="#64745B"
+            android:strokeLineCap="round"
+            android:strokeWidth="8" />
+    </group>
 </vector>

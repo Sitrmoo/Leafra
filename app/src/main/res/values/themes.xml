@@ -3,5 +3,7 @@
     <style name="Theme.Leafra" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/paper_background</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 </resources>

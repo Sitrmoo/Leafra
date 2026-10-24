@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="paper_background">#F7F1E5</color>
-    <color name="ic_launcher_background">#8B5E3C</color>
+    <!-- 品牌基础色，与 ui/theme/Color.kt 保持一致 -->
+    <color name="brand_sage">#87977A</color>
+    <color name="brand_sage_deep">#5C6E54</color>
+    <color name="brand_cream">#F8F4E8</color>
+    <color name="brand_ink">#3E3A31</color>
+
+    <color name="paper_background">#F6F0E3</color>
+    <!-- 自适应图标背景：奶油白纸张 -->
+    <color name="ic_launcher_background">#F4EDDC</color>
 </resources>
